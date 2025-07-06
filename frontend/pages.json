@@ -1,0 +1,59 @@
+{
+	"pages": [{
+			"path": "pages/index/index",
+			"style": {
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/personage/personage",
+			"style": {
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/noname/noname",
+			"style": {
+				"navigationStyle": "custom"
+			}
+		}
+	],
+	"usingComponents": {
+		"cu-custom": "/style/colorui/components/cu-custom"
+	},
+	"globalStyle": {
+		"navigationBarTextStyle": "black",
+		"navigationBarTitleText": "口香糖缺陷工业检测系统",
+		"navigationBarBackgroundColor": "#F8F8F8",
+		"backgroundColor": "#F8F8F8"
+	},
+	"uniIdRouter": {},
+	"tabBar": {
+		"backgroundColor": "#fff",
+		"color": "#808080",
+		"selectedColor": "#4F78FF",
+		"borderStyle": "white",
+		"list": [{
+				"pagePath": "pages/index/index",
+				"iconPath": "/static/1.png",
+				"selectedIconPath": "/static/11.png",
+				"text": "主页",
+				"iconSize": 28
+			},
+			{
+				"pagePath": "pages/noname/noname",
+				"iconPath": "/static/2.png",
+				"selectedIconPath": "/static/22.png",
+				"text": "未定",
+				"iconSize": 28
+			},
+			{
+				"pagePath": "pages/personage/personage",
+				"iconPath": "/static/3.png",
+				"selectedIconPath": "/static/33.png",
+				"text": "个人",
+				"iconSize": 28
+			}
+		]
+	}
+}
