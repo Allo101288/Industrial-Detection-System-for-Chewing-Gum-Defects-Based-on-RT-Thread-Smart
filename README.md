@@ -1,0 +1,1 @@
+# Industrial-Detection-System-for-Chewing-Gum-Defects-Based-on-RT-Thread-Smart
