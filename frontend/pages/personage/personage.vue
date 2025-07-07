@@ -1,556 +1,449 @@
 <template>
-  <view class="page-container">
-    <view class="custom-nav-bar" id="navBar">
-      <view class="nav-title">个人中心</view>
-      <view class="head-box" @click="openPopup">
-        <view class="heads">
-          <!-- <button class="btnLogin" open-type="getPhoneNumber" bindgetphonenumber="getPhoneNumber"></button> -->
-          <image
-            :src="
-              loginStatus
-                ? '../../static/headshot2.png'
-                : '../../static/headshot1.png'
-            "
-            mode=""
-          />
+  <view class="container">
+    <!-- Header -->
+    <view class="header">
+      <view class="header-bg-circle header-bg-circle-1"></view>
+      <view class="header-bg-circle header-bg-circle-2"></view>
+      <view class="header-title">个人中心</view>
+      
+      <!-- Profile Section -->
+      <view class="profile-section">
+        <view class="avatar-container">
+          <view class="avatar">
+            <text class="icon">👤</text>
+          </view>
+          <view class="online-indicator"></view>
         </view>
-        <view class="texts" v-if="!loginStatus">
-          <view class="ts1"> 未登录/注册 </view>
-          <!-- <view class="ts1">
-						{{ username }}
-					</view> -->
-          <view class="ts2"> 点击头像可登录/注册 </view>
-        </view>
-        <view class="account" v-else>
-          {{ account }}
+        <view class="profile-info">
+          <text class="profile-name">未登录/注册</text>
+          <text class="profile-desc">点击头像可登录/注册</text>
         </view>
       </view>
     </view>
-    <view class="pers">
-      <view class="items">
-        <view class="tts">常用服务</view>
-        <view class="sss">
-          <view class="s1" @click="navigate" data-url="/pkgA/mysubmit/mysubmit">
-            <image src="../../static/submit.png" mode="" />
-            <view style="margin-top: 5px">联系我们</view>
+
+    <!-- Services -->
+    <view class="services-container">
+      <!-- Common Services -->
+      <view class="service-card">
+        <view class="service-header">
+          <view class="service-indicator"></view>
+          <text class="service-title">常用服务</text>
+        </view>
+        <view class="service-grid">
+          <view class="service-item" @click="handleService('contact')">
+            <view class="service-icon service-icon-blue">
+              <text class="icon">📧</text>
+            </view>
+            <text class="service-label">联系我们</text>
           </view>
-          <view class="s1" @click="navigate" data-url="/pkgA/resume/resume">
-            <image src="../../static/分组 1@2x.png" mode="" />
-            <view style="margin-top: 5px">历史记录</view>
+          <view class="service-item" @click="handleService('history')">
+            <view class="service-icon service-icon-green">
+              <text class="icon">📄</text>
+            </view>
+            <text class="service-label">历史记录</text>
           </view>
-          <view
-            class="s1"
-            @click="navigate"
-            data-url="/pkgA/collection/collection"
-          >
-            <image src="../../static/collect.png" mode="" />
-            <view style="margin-top: 5px">我的收藏</view>
+          <view class="service-item" @click="handleService('favorites')">
+            <view class="service-icon service-icon-yellow">
+              <text class="icon">⭐</text>
+            </view>
+            <text class="service-label">我的收藏</text>
           </view>
         </view>
       </view>
-      <view class="items">
-        <view class="tts">其他服务</view>
-        <view class="sss">
-          <view class="s2" @click="navigate" data-url="/pkgA/about/about">
-            <image
-              style="width: 30px; height: 26px"
-              src="../../static/about.png"
-              mode=""
-            />
-            <view style="margin-top: 5px">关于我们</view>
+
+      <!-- Other Services -->
+      <view class="service-card">
+        <view class="service-header">
+          <view class="service-indicator service-indicator-purple"></view>
+          <text class="service-title">其他服务</text>
+        </view>
+        <view class="service-list">
+          <view class="service-row" @click="handleService('about')">
+            <view class="service-row-left">
+              <view class="service-icon-small service-icon-indigo">
+                <text class="icon">👥</text>
+              </view>
+              <text class="service-row-label">关于我们</text>
+            </view>
+            <text class="service-arrow">›</text>
           </view>
-          <view class="s2" @click="navigate" data-url="/pkgA/privacy/privacy">
-            <image
-              style="width: 24.16px; height: 26px"
-              src="../../static/yinsi.png"
-              mode=""
-            />
-            <view style="margin-top: 5px">隐私政策</view>
+          <view class="service-row" @click="handleService('privacy')">
+            <view class="service-row-left">
+              <view class="service-icon-small service-icon-teal">
+                <text class="icon">🛡️</text>
+              </view>
+              <text class="service-row-label">隐私政策</text>
+            </view>
+            <text class="service-arrow">›</text>
           </view>
-          <view class="s2" @click="navigate" data-url="/pkgA/service/service">
-            <image
-              style="width: 24.53px; height: 26px"
-              src="../../static/service.png"
-              mode=""
-            />
-            <view style="margin-top: 5px">服务协议</view>
+          <view class="service-row" @click="handleService('terms')">
+            <view class="service-row-left">
+              <view class="service-icon-small service-icon-cyan">
+                <text class="icon">📋</text>
+              </view>
+              <text class="service-row-label">服务协议</text>
+            </view>
+            <text class="service-arrow">›</text>
           </view>
-          <view class="s2" @click="navigate" data-url="/pkgA/law/law">
-            <image
-              style="width: 23px; height: 26px"
-              src="../../static/law.png"
-              mode=""
-            />
-            <view style="margin-top: 5px">法律声明</view>
+          <view class="service-row" @click="handleService('legal')">
+            <view class="service-row-left">
+              <view class="service-icon-small service-icon-red">
+                <text class="icon">⚖️</text>
+              </view>
+              <text class="service-row-label">法律声明</text>
+            </view>
+            <text class="service-arrow">›</text>
           </view>
         </view>
       </view>
     </view>
+
+    <!-- Bottom Navigation -->
+    <!-- <view class="bottom-nav">
+      <view class="nav-item" @click="switchTab('home')">
+        <text class="nav-icon">🏠</text>
+        <text class="nav-label">主页</text>
+      </view>
+      <view class="nav-item" @click="switchTab('chat')">
+        <text class="nav-icon">💬</text>
+        <text class="nav-label">智能助手</text>
+      </view>
+      <view class="nav-item active">
+        <text class="nav-icon">👤</text>
+        <text class="nav-label">个人</text>
+      </view>
+    </view> -->
   </view>
-  <uni-popup ref="popups" type="bottom" mask="true" @change="change">
-    <view class="popup-content">
-      <Login
-        :show="showLogin"
-        @loginSuccess="handleLoginSuccess"
-        @hideLoginView="handleClose"
-      />
-    </view>
-  </uni-popup>
 </template>
 
 <script setup>
-import { ref } from "vue";
-import Login from "../../components/Login.vue";
-import { onShow, onLoad, onReachBottom } from "@dcloudio/uni-app";
-onShow(async () => {
-  // 页面显示时执行的逻辑
-  console.log("页面显示");
-  loginStatus.value = uni.getStorageSync("loginStatus") || false; // 获取登录状态
-  if (loginStatus.value) {
-    account.value = formatPhoneNumber(uni.getStorageSync("account"));
-  }
-});
+//import { uni } from 'some-module'; // Import the uni variable from the appropriate module
 
-function navigate(e) {
+const handleService = (service) => {
   uni.showToast({
-    title: "功能暂未开发~",
-    icon: "none",
-  });
-  return;
-  console.log(e.currentTarget.dataset);
-  uni.navigateTo({
-    url: e.currentTarget.dataset.url,
-  });
-}
-const loginStatus = ref(false); // 登录状态
-const account = ref();
-loginStatus.value = uni.getStorageSync("loginStatus") || false; // 获取登录状态
-if (loginStatus.value) {
-  account.value = formatPhoneNumber(uni.getStorageSync("account"));
-}
-const showLogin = ref(false);
-const popups = ref();
-// 打开弹窗
-const openPopup = (e) => {
-  if (loginStatus.value) {
-    return; // 如果已登录，则不打开弹窗
-  }
-  if (popups.value) {
-    uni.hideTabBar();
-    showLogin.value = true;
-    popups.value.open();
-  }
-};
-
-// 关闭弹窗
-const closePopup = () => {
-  if (popups.value) {
-    popups.value.close();
-  }
-};
-
-const change = (event) => {
-  console.log("Popup state changed");
-  if (!event.show) {
-    console.log("点击了蒙层，弹窗已关闭");
-    showLogin.value = false;
-    // 在这里写点击蒙层后的逻辑
-    uni.showTabBar();
-  }
-};
-
-function handleLoginSuccess(payload) {
-  // 可以在这里执行登录成功后的其他逻辑
-  if (payload) {
-    loginStatus.value = true; // 更新登录状态
-    // 更新 account 的值
-    account.value = formatPhoneNumber(uni.getStorageSync("account"));
-    // 关闭弹窗
-    showLogin.value = false;
-    closePopup();
-  }
+    title: `点击了${service}`,
+    icon: 'none'
+  })
 }
 
-function handleClose(e) {
-  // 处理关闭事件
-  showLogin.value = false;
-  closePopup();
-}
-
-function formatPhoneNumber(phone) {
-  if (!phone) return "";
-  return phone.replace(/(\d{3})\d{4}(\d{4})/, "$1****$2");
+const switchTab = (tab) => {
+  if (tab === 'home') {
+    uni.navigateTo({ url: '/pages/index/index' })
+  } else if (tab === 'chat') {
+    uni.navigateTo({ url: '/pages/chat/chat' })
+  }
 }
 </script>
 
-<style lang="scss" scoped>
-.page-container {
-  background: linear-gradient(to bottom, #dbe8ff, #f5f5f5 50%);
-  backdrop-filter: blur(87px);
-  height: 100vh;
-  /* 使用视口高度确保填充整个页面 */
-  width: 100vw;
-  /* 使用视口宽度确保填充整个页面 */
+<style scoped>
+.container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f0f4ff 0%, #e0e7ff 50%, #f3e8ff 100%);
+}
+
+.header {
+  background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+  padding: 48rpx 48rpx 64rpx;
+  color: white;
+  position: relative;
+  overflow: hidden;
+}
+
+.header-bg-circle {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+}
+
+.header-bg-circle-1 {
+  width: 256rpx;
+  height: 256rpx;
+  top: -128rpx;
+  right: -128rpx;
+}
+
+.header-bg-circle-2 {
+  width: 192rpx;
+  height: 192rpx;
+  bottom: -96rpx;
+  left: -96rpx;
+}
+
+.header-title {
+  font-size: 1.25rem;
+  font-weight: bold;
+  text-align: center;
+  z-index: 10;
+  width: 100%;
+  margin-bottom: 22px;
+
+}
+
+.profile-section {
+  display: flex;
+  align-items: center;
+  gap: 32rpx;
+  position: relative;
+  z-index: 10;
+}
+
+.avatar-container {
+  position: relative;
+}
+
+.avatar {
+  width: 128rpx;
+  height: 128rpx;
+  background: rgba(255, 255, 255, 0.2);
+  border: 8rpx solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 64rpx;
+  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.1);
+}
+
+.online-indicator {
+  position: absolute;
+  bottom: -4rpx;
+  right: -4rpx;
+  width: 48rpx;
+  height: 48rpx;
+  background: #10b981;
+  border: 4rpx solid white;
+  border-radius: 50%;
+}
+
+.profile-info {
+  flex: 1;
+}
+
+.profile-name {
+  font-size: 36rpx;
+  font-weight: 600;
+  margin-bottom: 8rpx;
+  display: block;
+}
+
+.profile-desc {
+  font-size: 28rpx;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.services-container {
+  padding: 0 48rpx;
+  margin-top: -32rpx;
+  position: relative;
+  z-index: 10;
+  padding-bottom: 160rpx;
+}
+
+.service-card {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(20rpx);
+  border-radius: 24rpx;
+  margin-bottom: 48rpx;
+  box-shadow: 0 16rpx 64rpx rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.service-header {
+  padding: 48rpx 48rpx 32rpx;
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+}
+
+.service-indicator {
+  width: 8rpx;
+  height: 48rpx;
+  background: linear-gradient(to bottom, #2563eb 0%, #4f46e5 100%);
+  border-radius: 4rpx;
+}
+
+.service-indicator-purple {
+  background: linear-gradient(to bottom, #8b5cf6 0%, #7c3aed 100%);
+}
+
+.service-title {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #1f2937;
+}
+
+.service-grid {
+  display: flex;
+  /* padding: 0 48rpx 48rpx; */
+  gap: 32rpx;
+}
+
+.service-item {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  gap: 16rpx;
+  padding: 32rpx;
+  transition: all 0.2s;
 }
 
-.custom-nav-bar {
-  top: 0;
+.service-item:active {
+  transform: scale(0.95);
+}
+
+.service-icon {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48rpx;
+  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.15);
+  transition: transform 0.2s;
+}
+
+.service-item:active .service-icon {
+  transform: scale(1.1);
+}
+
+.service-icon-blue {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+}
+
+.service-icon-green {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.service-icon-yellow {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+.service-label {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #1f2937;
+}
+
+.service-list {
+  padding: 0 48rpx 48rpx;
+}
+
+.service-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 32rpx 0;
+  border-bottom: 1rpx solid #f3f4f6;
+  transition: all 0.2s;
+}
+
+.service-row:last-child {
+  border-bottom: none;
+}
+
+.service-row:active {
+  background: rgba(0, 0, 0, 0.02);
+  margin: 0 -32rpx;
+  padding-left: 32rpx;
+  padding-right: 32rpx;
+}
+
+.service-row-left {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+}
+
+.service-icon-small {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40rpx;
+  transition: transform 0.2s;
+}
+
+.service-row:active .service-icon-small {
+  transform: scale(1.1);
+}
+
+.service-icon-indigo {
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+}
+
+.service-icon-teal {
+  background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
+}
+
+.service-icon-cyan {
+  background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+}
+
+.service-icon-red {
+  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+}
+
+.service-row-label {
+  font-size: 32rpx;
+  font-weight: 500;
+  color: #1f2937;
+}
+
+.service-arrow {
+  font-size: 40rpx;
+  color: #9ca3af;
+  transition: color 0.2s;
+}
+
+.service-row:active .service-arrow {
+  color: #6b7280;
+}
+
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
   left: 0;
   right: 0;
-  padding: 0 16px;
-  z-index: 10;
-  /* 确保导航栏在最顶层 */
-  transition: top 0.3s ease-in-out;
-  /* 平滑过渡效果 */
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20rpx);
+  border-top: 1rpx solid #e5e7eb;
   display: flex;
-  justify-content: center;
-  width: 100;
-  height: 250px;
+  padding: 24rpx 0;
 }
 
-.nav-title {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  top: 23.79px;
-  width: 90px;
-  height: 27px;
-  opacity: 0.9;
-  font-size: 18px;
-  font-weight: 500;
-  letter-spacing: 0px;
-  line-height: 26.06px;
-  color: black;
-  text-align: center;
-  vertical-align: top;
-}
-
-.pers {
-  position: fixed;
-  top: 190px;
-  width: 100%;
-
-  opacity: 1;
-  z-index: 1000;
-  border-radius: 25px 25px 0px 0px;
-  //   background: linear-gradient(
-  //     180deg,
-  //     rgba(227, 238, 255, 1) 0%,
-  //     rgba(232, 241, 255, 1) 0%,
-  //     rgba(241, 242, 243, 1) 26.39%,
-  //     rgba(247, 247, 247, 1) 58.08%
-  //   );
-}
-
-.items {
-  width: 90vw;
-  margin-left: 5vw;
-  margin-top: 2vh;
-  height: 104px;
-  opacity: 1;
-  border-radius: 15px;
-  background: rgba(255, 255, 255, 1);
-  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.05);
-}
-
-.tts {
-  position: relative;
-  top: 7px;
-  left: 17px;
-  font-size: 14px;
-  font-weight: 500;
-  letter-spacing: 0px;
-  line-height: 20.27px;
-  color: rgba(56, 56, 56, 1);
-  text-align: left;
-  vertical-align: top;
-}
-
-.sss {
-  margin-top: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: space-around;
-}
-
-.s1 {
-  font-size: 12px;
-  font-weight: 400;
-  letter-spacing: 0px;
-  line-height: 17.38px;
-  color: rgba(56, 56, 56, 1);
-  text-align: center;
-  vertical-align: top;
-}
-
-.s2 {
-  font-size: 12px;
-  font-weight: 400;
-  letter-spacing: 0px;
-  line-height: 17.38px;
-  color: rgba(56, 56, 56, 1);
-  text-align: center;
-  vertical-align: top;
-}
-
-.s1 image {
-  width: 28.8px;
-  height: 27.88px;
-}
-
-.heads image {
-  border-radius: 50%;
-  width: 65px;
-  height: 65px;
-}
-
-.head-box {
-  left: 31px;
-  top: 84px;
-  position: fixed;
-  width: 300px;
-}
-
-.ts1 {
-  position: fixed;
-  left: 112px;
-  top: 97px;
-  width: 98px;
-  height: 28px;
-  opacity: 1;
-  /** 文本1 */
-  font-size: 14px;
-  font-weight: 500;
-  letter-spacing: 0px;
-  line-height: 20.27px;
-  color: rgba(0, 0, 0, 1);
-  text-align: left;
-  vertical-align: top;
-}
-
-.ts2 {
-  position: fixed;
-  left: 112px;
-  top: 125px;
-  width: 136px;
-  height: 22px;
-  opacity: 1;
-  /** 文本1 */
-  font-size: 11px;
-  font-weight: 400;
-  letter-spacing: 0px;
-  line-height: 15.93px;
-  color: rgba(56, 56, 56, 1);
-  text-align: left;
-  vertical-align: top;
-}
-
-.account {
-  position: fixed;
-  left: 112px;
-  top: 125px;
-  width: 98px;
-  height: 28px;
-  opacity: 1;
-  /** 文本1 */
-  font-size: 14px;
-  font-weight: 400;
-  letter-spacing: 0px;
-  line-height: 18.82px;
-  color: rgba(128, 128, 128, 1);
-  text-align: left;
-  vertical-align: top;
-}
-
-.btnLogin {
-  width: 250px;
-  height: 46px;
-  position: absolute;
-  opacity: 0;
-}
-
-.bg {
-  display: none;
-  position: absolute;
-
-  left: 0%;
-  width: 100vw;
-  height: 1400px;
-  background-color: black;
-  z-index: 1001;
-  -moz-opacity: 0.7;
-  opacity: 0.7;
-  filter: alpha(opacity=70);
-}
-
-.loginMode {
-  width: 100vw;
-  height: auto;
-  opacity: 1;
-  border-top-left-radius: 12px;
-  /* 设置左上角圆角 */
-  border-top-right-radius: 12px;
-  /* 设置右上角圆角 */
-  background: rgba(255, 255, 255, 1);
-  position: fixed;
-  z-index: 2000;
-  bottom: 0;
+.nav-item {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  gap: 8rpx;
+  padding: 16rpx;
+  transition: all 0.2s;
 }
 
-.temt {
-  font-size: 18px;
+.nav-item:active {
+  transform: scale(0.95);
+}
+
+.nav-icon {
+  font-size: 48rpx;
+}
+
+.nav-label {
+  font-size: 24rpx;
+  color: #6b7280;
+}
+
+.nav-item.active .nav-label {
+  color: #2563eb;
   font-weight: 500;
-  letter-spacing: 0px;
-  line-height: 26.06px;
-  color: rgba(0, 0, 0, 1);
-  text-align: center;
-  vertical-align: top;
-  margin-top: 15px;
 }
 
-.ser {
-  font-size: 12px;
-  font-weight: 400;
-  letter-spacing: 0px;
-  line-height: 17.38px;
-  color: rgba(0, 0, 0, 1);
-  text-align: center;
-  vertical-align: top;
-  margin-top: 8px;
-}
-
-.phonelogin {
-  width: 250px;
-  height: 46px;
-  opacity: 1;
-  border-radius: 23px;
-  background: rgba(80, 177, 178, 1);
-  margin: auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  font-weight: 400;
-  letter-spacing: 0px;
-  line-height: 23.17px;
-  color: rgba(255, 255, 255, 1);
-  text-align: justify;
-  vertical-align: top;
-  margin-top: 20px;
-  margin-bottom: 20px;
-  position: relative;
-}
-
-.phonelogin image {
-  width: 12.07px;
-  height: 17.93px;
-  margin-right: 15px;
-}
-
-.meng {
-  background-color: rgb(160, 70, 70, 0);
-  width: 250px;
-  height: 46px;
-  position: absolute;
-  margin-top: 20px;
-  border-radius: 23px;
-  left: 50%;
-  transform: translateX(-50%);
-  /* 旋转并保持居中 */
-  z-index: 10;
-}
-
-.mengs {
-  background-color: rgb(160, 70, 70, 0);
-  width: 250px;
-  height: 46px;
-  position: absolute;
-  margin-top: 86px;
-  border-radius: 23px;
-  left: 50%;
-  transform: translateX(-50%);
-  /* 旋转并保持居中 */
-  z-index: 10;
-}
-
-.msglogin image {
-  width: 17.5px;
-  height: 17.5px;
-  margin-right: 15px;
-}
-
-.msglogin {
-  width: 250px;
-  height: 46px;
-  opacity: 1;
-  border-radius: 23px;
-  background: rgba(229, 229, 229, 1);
-  font-size: 16px;
-  font-weight: 400;
-  letter-spacing: 0px;
-  line-height: 23.17px;
-  color: rgba(56, 56, 56, 1);
-  text-align: justify;
-  vertical-align: top;
-  margin: auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 20px;
-}
-
-.ist {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  font-weight: 400;
-  letter-spacing: 0px;
-  line-height: 14.48px;
-  color: rgba(0, 0, 0, 1);
-  text-align: justify;
-  vertical-align: top;
-  
-  margin-bottom: 60px;
-}
-
-.gous {
-  width: 14px;
-  height: 14px;
-  border-radius: 2px;
-  border: 2px solid rgba(80, 177, 178, 1);
-  margin-right: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.gous image {
-  width: 11px;
-  height: 8px;
-}
-
-.chas {
-  position: absolute;
-  width: 20px;
-  height: 20px;
-  top: 11px;
-  right: 13px;
-}
-
-.popup-content {
-  background-color: #fff;
-  border-top-left-radius: 10px;
-  border-top-right-radius: 10px;
-  min-height: 254px;
-  width: 100%;
+.icon {
+  font-size: inherit;
 }
 </style>
