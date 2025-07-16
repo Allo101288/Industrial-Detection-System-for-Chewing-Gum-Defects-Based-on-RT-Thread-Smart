@@ -16,6 +16,12 @@
 			"style": {
 				"navigationStyle": "custom"
 			}
+		},
+		{
+			"path": "pages/history/history",
+			"style": {
+				"navigationStyle": "custom"
+			}
 		}
 	],
 	"usingComponents": {

@@ -3,6 +3,11 @@
 		"autoprefixer": "^10.4.21",
 		"postcss": "^8.5.5",
 		"tailwindcss": "^4.1.10"
+	},
+	"dependencies": {
+		"@pinia/nuxt": "^0.11.1",
+		"@qiun/ucharts": "^2.5.0-20230101",
+		"jsonwebtoken": "^9.0.2",
+		"pinia": "^3.0.3"
 	}
-
 }

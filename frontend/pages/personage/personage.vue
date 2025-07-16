@@ -5,18 +5,18 @@
       <view class="header-bg-circle header-bg-circle-1"></view>
       <view class="header-bg-circle header-bg-circle-2"></view>
       <view class="header-title">个人中心</view>
-      
+
       <!-- Profile Section -->
       <view class="profile-section">
         <view class="avatar-container">
-          <view class="avatar">
+          <view class="avatar" @click="showLogin">
             <text class="icon">👤</text>
           </view>
-          <view class="online-indicator"></view>
+          <view class="online-indicator" :class="{'online': isLoggedIn}"></view>
         </view>
         <view class="profile-info">
-          <text class="profile-name">未登录/注册</text>
-          <text class="profile-desc">点击头像可登录/注册</text>
+          <text class="profile-name">{{ userName }}</text>
+          <text class="profile-desc">{{ isLoggedIn ? '已登录' : '点击头像可登录/注册' }}</text>
         </view>
       </view>
     </view>
@@ -98,43 +98,218 @@
       </view>
     </view>
 
-    <!-- Bottom Navigation -->
-    <!-- <view class="bottom-nav">
-      <view class="nav-item" @click="switchTab('home')">
-        <text class="nav-icon">🏠</text>
-        <text class="nav-label">主页</text>
+    <!-- 登录弹框 -->
+    <uni-popup ref="popup" type="center" :mask-click="false">
+      <view class="login-container">
+        <view class="login-header">
+          <text class="login-title">{{ isLoginMode ? '登录' : '注册' }}</text>
+          <text class="login-close" @click="popup.close">×</text>
+        </view>
+        
+        <view class="login-form">
+          <view class="form-item">
+            <text class="form-label">账号</text>
+            <input 
+              class="form-input" 
+              v-model="form.username" 
+              placeholder="请输入账号" 
+              placeholder-class="input-placeholder"
+            />
+          </view>
+          
+          <view class="form-item">
+            <text class="form-label">密码</text>
+            <input 
+              class="form-input" 
+              v-model="form.password" 
+              placeholder="请输入密码" 
+              placeholder-class="input-placeholder"
+              password
+            />
+          </view>
+          
+          <view v-if="!isLoginMode" class="form-item">
+            <text class="form-label">确认密码</text>
+            <input 
+              class="form-input" 
+              v-model="form.confirmPassword" 
+              placeholder="请再次输入密码" 
+              placeholder-class="input-placeholder"
+              password
+            />
+          </view>
+          
+          <button 
+            class="login-btn" 
+            :style="{background: isLoginMode ? 'linear-gradient(135deg, #2563eb 0%, #4f46e5 100%)' : 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)'}"
+            @click="handleSubmit"
+            :loading="isLoading"
+          >
+            {{ isLoginMode ? '登 录' : '注 册' }}
+          </button>
+          
+          <view class="login-footer">
+            <text class="footer-text" @click="switchMode">
+              {{ isLoginMode ? '没有账号？立即注册' : '已有账号？立即登录' }}
+            </text>
+          </view>
+        </view>
       </view>
-      <view class="nav-item" @click="switchTab('chat')">
-        <text class="nav-icon">💬</text>
-        <text class="nav-label">智能助手</text>
-      </view>
-      <view class="nav-item active">
-        <text class="nav-icon">👤</text>
-        <text class="nav-label">个人</text>
-      </view>
-    </view> -->
+    </uni-popup>
   </view>
 </template>
 
 <script setup>
-//import { uni } from 'some-module'; // Import the uni variable from the appropriate module
+import { ref, reactive, onMounted } from "vue";
+import { storeToRefs } from 'pinia';
+import { useUserStore } from '@/stores/user';
+
+const userStore = useUserStore();
+const { isLoggedIn, userName } = storeToRefs(userStore);
+
+const popup = ref(null);
+const isLoginMode = ref(true);
+const isLoading = ref(false);
+
+const form = reactive({
+  username: '',
+  password: '',
+  confirmPassword: ''
+});
+
+// 检查登录状态
+const checkLoginStatus = async () => {
+  await userStore.checkLogin();
+};
+
+onMounted(() => {
+  checkLoginStatus();
+});
+
+const showLogin = () => {
+  if (isLoggedIn.value) return;
+  popup.value.open();
+};
+
+const switchMode = () => {
+  isLoginMode.value = !isLoginMode.value;
+  form.username = '';
+  form.password = '';
+  form.confirmPassword = '';
+};
+
+const handleSubmit = async () => {
+  if (!form.username || !form.password) {
+    uni.showToast({
+      title: '请输入账号和密码',
+      icon: 'none'
+    });
+    return;
+  }
+  
+  if (!isLoginMode.value && form.password !== form.confirmPassword) {
+    uni.showToast({
+      title: '两次密码输入不一致',
+      icon: 'none'
+    });
+    return;
+  }
+  
+  isLoading.value = true;
+  
+  try {
+    if (isLoginMode.value) {
+      // 登录逻辑
+      const loginRes = await uniCloud.callFunction({
+        name: 'Login',
+        data: {
+          username: form.username,
+          password: form.password
+        }
+      });
+      console.log('Login Response:', loginRes,loginRes.result.message);
+      if (loginRes.result.code === 200) {
+        // 登录成功处理
+        await userStore.login({
+          token: loginRes.result.data.token,
+          userInfo: loginRes.result.data.userInfo
+        });
+        
+        uni.showToast({
+          title: '登录成功',
+          icon: 'success'
+        });
+        
+        popup.value.close();
+      } else {
+        throw new Error(loginRes.result.message || '登录失败');
+      }
+    } else {
+      // 注册逻辑
+      const registerRes = await uniCloud.callFunction({
+        name: 'Register',
+        data: {
+          username: form.username,
+          password: form.password
+        }
+      });
+      console.log('Register Response:', registerRes);
+      if (registerRes.result.code === 200) {
+        uni.showToast({
+          title: '注册成功，请登录',
+          icon: 'success'
+        });
+        // 注册后自动切换到登录模式
+        isLoginMode.value = true;
+      } else {
+        throw new Error(registerRes.result.message || '注册失败');
+      }
+    }
+  } catch (error) {
+    uni.showToast({
+      title: error.message,
+      icon: 'none'
+    });
+  } finally {
+    isLoading.value = false;
+    form.password = '';
+    form.confirmPassword = '';
+  }
+};
 
 const handleService = (service) => {
-  uni.showToast({
-    title: `点击了${service}`,
-    icon: 'none'
-  })
-}
+  if (!isLoggedIn.value) {
+    uni.showToast({
+      title: '请先登录',
+      icon: 'none'
+    });
+    showLogin();
+    return;
+  }
+  
+  // uni.showToast({
+  //   title: `点击了${service}`,
+  //   icon: "none",
+  // });
+  if(service!='history' ){
+    uni.showToast({
+      title: '该功能正在开发中~',
+      icon: "none",
+    });
+  }
+  uni.navigateTo({
+    url: `/pages/${service}/${service}`
+  });
+};
 
 const switchTab = (tab) => {
-  if (tab === 'home') {
-    uni.navigateTo({ url: '/pages/index/index' })
-  } else if (tab === 'chat') {
-    uni.navigateTo({ url: '/pages/chat/chat' })
+  if (tab === "home") {
+    uni.navigateTo({ url: "/pages/index/index" });
+  } else if (tab === "chat") {
+    uni.navigateTo({ url: "/pages/chat/chat" });
   }
-}
+};
 </script>
-
 <style scoped>
 .container {
   min-height: 100vh;
@@ -176,7 +351,6 @@ const switchTab = (tab) => {
   z-index: 10;
   width: 100%;
   margin-bottom: 22px;
-
 }
 
 .profile-section {
@@ -274,7 +448,6 @@ const switchTab = (tab) => {
 
 .service-grid {
   display: flex;
-  /* padding: 0 48rpx 48rpx; */
   gap: 32rpx;
 }
 
@@ -403,44 +576,105 @@ const switchTab = (tab) => {
   color: #6b7280;
 }
 
-.bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
+/* 登录弹框样式 */
+.login-container {
+  width: 600rpx;
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(20rpx);
-  border-top: 1rpx solid #e5e7eb;
-  display: flex;
-  padding: 24rpx 0;
+  border-radius: 32rpx;
+  overflow: hidden;
+  box-shadow: 0 32rpx 96rpx rgba(0, 0, 0, 0.2);
 }
 
-.nav-item {
-  flex: 1;
+.login-header {
+  padding: 40rpx;
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
   align-items: center;
-  gap: 8rpx;
-  padding: 16rpx;
+  background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+}
+
+.login-title {
+  font-size: 40rpx;
+  font-weight: bold;
+  color: white;
+}
+
+.login-close {
+  font-size: 48rpx;
+  color: rgba(255, 255, 255, 0.8);
+  padding: 0 20rpx;
+}
+
+.login-form {
+  padding: 40rpx;
+}
+
+.form-item {
+  margin-bottom: 40rpx;
+}
+
+.form-label {
+  display: block;
+  font-size: 32rpx;
+  color: #4b5563;
+  margin-bottom: 16rpx;
+  font-weight: 500;
+}
+
+.form-input {
+  width: 88%;
+  height: 96rpx;
+  padding: 0 32rpx;
+  background: #f9fafb;
+  border-radius: 16rpx;
+  font-size: 32rpx;
+  border: 2rpx solid #e5e7eb;
   transition: all 0.2s;
 }
 
-.nav-item:active {
-  transform: scale(0.95);
+.form-input:focus {
+  border-color: #2563eb;
+  background: #fff;
 }
 
-.nav-icon {
-  font-size: 48rpx;
+.input-placeholder {
+  color: #9ca3af;
+  font-size: 32rpx;
 }
 
-.nav-label {
-  font-size: 24rpx;
-  color: #6b7280;
+.login-btn {
+  width: 100%;
+  height: 96rpx;
+  line-height: 96rpx;
+  border-radius: 16rpx;
+  color: white;
+  font-size: 36rpx;
+  font-weight: bold;
+  margin-top: 48rpx;
+  border: none;
+  box-shadow: 0 8rpx 24rpx rgba(37, 99, 235, 0.3);
+  transition: all 0.2s;
 }
 
-.nav-item.active .nav-label {
-  color: #2563eb;
-  font-weight: 500;
+.login-btn:active {
+  transform: scale(0.98);
+  opacity: 0.9;
+}
+
+.login-footer {
+  margin-top: 48rpx;
+  text-align: center;
+}
+
+.footer-text {
+  color: #4f46e5;
+  font-size: 28rpx;
+  text-decoration: underline;
+}
+
+.footer-text:active {
+  opacity: 0.8;
 }
 
 .icon {

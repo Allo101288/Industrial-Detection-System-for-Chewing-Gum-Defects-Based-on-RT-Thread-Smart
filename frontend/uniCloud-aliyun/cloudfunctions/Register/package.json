@@ -1,0 +1,7 @@
+{
+  "name": "Register",
+  "dependencies": {},
+  "extensions": {
+    "uni-cloud-jql": {}
+  }
+}

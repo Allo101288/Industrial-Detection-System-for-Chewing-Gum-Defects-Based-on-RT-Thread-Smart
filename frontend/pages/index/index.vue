@@ -19,6 +19,12 @@
           <text class="activity-icon">📊</text>
           <text>实时检测状态</text>
         </view>
+        <view
+          class="status-badge"
+          :class="deviceStatus ? 'running' : 'stopped'"
+        >
+          <text>{{ deviceStatus ? "设备在线" : "设备离线" }}</text>
+        </view>
         <view class="status-badge" :class="isRunning ? 'running' : 'stopped'">
           <text>{{ isRunning ? "运行中" : "已停止" }}</text>
         </view>
@@ -31,18 +37,18 @@
           <text class="status-number">{{ defectCount }}</text>
           <text class="status-label">缺陷总数</text>
         </view>
-        <view class="status-item">
+        <!-- <view class="status-item">
           <view class="status-icon status-icon-green">
             <text class="icon">✅</text>
           </view>
-          <text class="status-number">98.5%</text>
+          <text class="status-number">99.2%</text>
           <text class="status-label">检测精度</text>
-        </view>
+        </view> -->
         <view class="status-item">
           <view class="status-icon status-icon-orange">
             <text class="icon">⚠️</text>
           </view>
-          <text class="status-number">{{defectCountNow}}</text>
+          <text class="status-number">{{ defectCountNow }}</text>
           <text class="status-label">当前缺陷</text>
         </view>
       </view>
@@ -66,7 +72,7 @@
       <view class="card-header nonono">
         <view class="card-title">
           <view class="live-indicator"></view>
-          <text>实时图像展示</text>
+          <text>实时缺陷图片</text>
         </view>
       </view>
       <view class="detection-list">
@@ -78,12 +84,20 @@
           <view class="image-container">
             <view class="placeholder-image">
               <!-- <text class="placeholder-text">检测图像 {{ index + 1 }}</text> -->
-              <img :src="item.src" alt="" @click="onLongPress(item.src)" />
+
+              <img
+                mode="aspectFill|widthFix"
+                :src="item.src"
+                alt=""
+                @click="onLongPress(item.src)"
+              />
             </view>
           </view>
           <view class="detection-info">
             <text class="detection-time">{{ item.created }}</text>
-            <text class="detection-count">缺陷数量: {{ item.defect_count }}</text>
+            <text class="detection-count"
+              >缺陷数量: {{ item.defect_count }}</text
+            >
           </view>
         </view>
       </view>
@@ -106,35 +120,122 @@
         <text class="nav-label">个人</text>
       </view>
     </view> -->
+	<uni-popup ref="popup" type="center" :mask-click="false">
+      <view class="login-container">
+        <view class="login-header">
+          <text class="login-title">{{ isLoginMode ? '登录' : '注册' }}</text>
+          <text class="login-close" @click="popup.close">×</text>
+        </view>
+        
+        <view class="login-form">
+          <view class="form-item">
+            <text class="form-label">账号</text>
+            <input 
+              class="form-input" 
+              v-model="form.username" 
+              placeholder="请输入账号" 
+              placeholder-class="input-placeholder"
+            />
+          </view>
+          
+          <view class="form-item">
+            <text class="form-label">密码</text>
+            <input 
+              class="form-input" 
+              v-model="form.password" 
+              placeholder="请输入密码" 
+              placeholder-class="input-placeholder"
+              password
+            />
+          </view>
+          
+          <view v-if="!isLoginMode" class="form-item">
+            <text class="form-label">确认密码</text>
+            <input 
+              class="form-input" 
+              v-model="form.confirmPassword" 
+              placeholder="请再次输入密码" 
+              placeholder-class="input-placeholder"
+              password
+            />
+          </view>
+          
+          <button 
+            class="login-btn" 
+            :style="{background: isLoginMode ? 'linear-gradient(135deg, #2563eb 0%, #4f46e5 100%)' : 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)'}"
+            @click="handleSubmit"
+            :loading="isLoading"
+          >
+            {{ isLoginMode ? '登 录' : '注 册' }}
+          </button>
+          
+          <view class="login-footer">
+            <text class="footer-text" @click="switchMode">
+              {{ isLoginMode ? '没有账号？立即注册' : '已有账号？立即登录' }}
+            </text>
+          </view>
+        </view>
+      </view>
+    </uni-popup>
   </view>
+      <!-- 登录弹框 -->
+	  
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, reactive, onMounted, } from "vue";
 //import { uni } from 'some-uni-library' // Declare the uni variable here
 import { onShow, onLoad, onHide } from "@dcloudio/uni-app";
-import Loading from "../../components/Loading.vue";
+//import Loading from "../../components/Loading.vue";
+import { useUserStore } from "@/stores/user";
+import { storeToRefs } from "pinia";
+
+const userStore = useUserStore();
+// 检查登录状态
+const checkLoginStatus = async () => {
+  await userStore.checkLogin();
+};
+checkLoginStatus();
+// 检查登录状态
+
+const { isLoggedIn, userName } = storeToRefs(userStore);
+console.log("用户登录状态：", isLoggedIn.value, "用户名：", userName.value);
+const popup = ref(null);
+const isLoginMode = ref(true);
+const isLoading = ref(false);
+
+const form = reactive({
+  username: '',
+  password: '',
+  confirmPassword: ''
+});
 const isRunning = ref(false);
-let timer = null;
-  const kaikai = ref("开始");
-  const defectCount = ref(0);
-  const defectCountNow = ref(0);
-  onShow(() => {
-    getImages(); // 立即获取一次
-    timer = setInterval(getImages, 500); // 每0.5秒获取一次
-  });
-  
-  onHide(() => {
-    if (timer) {
-      clearInterval(timer);
-      timer = null;
-    }
-  });
-  const items = ref([
+let timer1 = null,
+  timer2 = null;
+const kaikai = ref("开始");
+const defectCount = ref(0);
+const defectCountNow = ref(0);
+const deviceStatus = ref(false); //设备连接状态
+onShow(() => {
+  getImages(); // 立即获取一次
+  timer1 = setInterval(getImages, 500); // 每0.5秒获取一次
+  getDeviceState();
+  timer2 = setInterval(getDeviceState, 2000); // 每2秒获取一次
+});
+
+onHide(() => {
+  if (timer1 || timer2) {
+    clearInterval(timer1);
+    clearInterval(timer2);
+    timer1 = null;
+    timer2 = null;
+  }
+});
+const items = ref([
   //   {
   //     src: "https://picsum.photos/200",
   //   },
-  ]);
+]);
 // const detectionData = ref([
 //   { time: "2025-07-07 19:33:36", count: 2, status: "warning" },
 //   { time: "2025-07-07 19:33:34", count: 1, status: "normal" },
@@ -143,167 +244,368 @@ let timer = null;
 
 //Sat Jul 05 2025
 const getImages = () => {
-    uni.request({
-      url: "http://112.74.32.111:8000/images",
-      success: (res) => {
-        if (res.statusCode === 200) {
-          //console.log("获取图片成功", res.data.images);
-          // 获取当前日期
-          const today = new Date();
-          const todayDateOnly = new Date(
-            today.getFullYear(),
-            today.getMonth(),
-            today.getDate()
-          );
-  
-          // 获取 items.value 中的最新图片时间戳（如果有）
-          const latestCreatedTime = items.value.length > 0
-            ? parseDateTime(items.value[0].created)
-            : null;
-  
-          // 筛选出当天的图片，并且只保留比最新图片时间戳更新的图片
-          const filteredImages = res.data.images
-            .slice(0, 1000) // 截取前1000个数据
-            .map(item => {
-              // 将 timestamp 转换为 create 格式 (YYYY-MM-DD HH:mm:ss)
-              const createStr = item.timestamp
-                .replace('T', ' ')          // 替换 T 为空格
-                .split('.')[0];              // 去除毫秒部分
-              
-              return {
-                ...item,
-                created: createStr  // 使用转换后的时间字符串
-              };
-            })
-            .filter((item) => {
-              const createdDate = parseDateTime(item.created);
-              return (
-                createdDate.toDateString() === todayDateOnly.toDateString() &&
-                (!latestCreatedTime || createdDate > latestCreatedTime)
-              );
-            })
-            .map((item) => ({
-              src: "http://112.74.32.111:8000" + item.url,
-              created: item.created,
-              defect_count: item.defect_count || 0, // 如果没有 defect_count，默认为 0
-            }));
-  
-          // 如果 items 是空，则直接赋值；否则将新筛选的结果添加到数组头部
-          if (filteredImages.length > 0) {
-            items.value = [...filteredImages, ...items.value];
-          }
-          defectCount.value = 0; // 重置 defectCount
-          items.value.forEach(e => {
-              defectCount.value += e.defect_count || 0; // 累加 defect_count
-          });
-          defectCountNow.value = items.value[0]?.defect_count || 0; // 获取最新图片的 defect_count
-        } else {
-          console.error("获取图片失败", res);
+  uni.request({
+    url: "http://112.74.32.111:8000/images",
+    success: (res) => {
+      if (res.statusCode === 200) {
+        //console.log("获取图片成功", res.data.images);
+        // 获取当前日期
+        const today = new Date();
+        const todayDateOnly = new Date(
+          today.getFullYear(),
+          today.getMonth(),
+          today.getDate()
+        );
+
+        // 获取 items.value 中的最新图片时间戳（如果有）
+        const latestCreatedTime =
+          items.value.length > 0 ? parseDateTime(items.value[0].created) : null;
+
+        // 筛选出当天的图片，并且只保留比最新图片时间戳更新的图片
+        const filteredImages = res.data.images
+          .slice(0, 200) // 截取前1000个数据
+          .map((item) => {
+            // 将 timestamp 转换为 create 格式 (YYYY-MM-DD HH:mm:ss)
+            const createStr = item.timestamp
+              .replace("T", " ") // 替换 T 为空格
+              .split(".")[0]; // 去除毫秒部分
+
+            return {
+              ...item,
+              created: createStr, // 使用转换后的时间字符串
+            };
+          })
+          .filter((item) => {
+            const createdDate = parseDateTime(item.created);
+            return (
+              createdDate.toDateString() === todayDateOnly.toDateString() &&
+              (!latestCreatedTime || createdDate > latestCreatedTime)
+            );
+          })
+          .map((item) => ({
+            src: "http://112.74.32.111:8000" + item.url,
+            created: item.created,
+            defect_count: item.defect_count || 0, // 如果没有 defect_count，默认为 0
+          }));
+
+        // 如果 items 是空，则直接赋值；否则将新筛选的结果添加到数组头部
+        if (filteredImages.length > 0) {
+          items.value = [...filteredImages, ...items.value];
         }
-      },
-      fail: (err) => {
-        console.error("请求失败", err);
-      },
-    });
-  };
-  
-  // 辅助函数：解析日期时间字符串（保持不变）
-  function parseDateTime(dateTimeStr) {
-    const dateTimeParts = dateTimeStr.split(" ");
-    const dateParts = dateTimeParts[0].split("-");
-    const timeParts = dateTimeParts[1].split(":");
-    return new Date(
-      parseInt(dateParts[0], 10), // 年
-      parseInt(dateParts[1], 10) - 1, // 月（从0开始）
-      parseInt(dateParts[2], 10), // 日
-      parseInt(timeParts[0], 10), // 时
-      parseInt(timeParts[1], 10), // 分
-      parseInt(timeParts[2], 10) // 秒
-    );
-  }
-  const kaishi = (e) => {
-    uni.request({
-      url: "https://iot-api.heclouds.com/thingmodel/set-device-property", // 请求的 URL
-      method: "POST", // 请求方法
-      header: {
-        "Content-Type": "application/json", // 设置请求头
-        // 如果需要，可以在这里添加其他请求头，例如认证 token
-        // "api-key": "your-api-key", // 示例：添加 API 密钥
-        authorization:
-          "version=2018-10-31&res=products%2FOrT98dB198%2Fdevices%2Flotus1&et=1917513743&method=md5&sign=rski44rCWDk0cXSVrbJOWg%3D%3D",
-      },
-  
-      data: {
-        product_id: "OrT98dB198",
-        device_name: "lotus1",
-        params: {
-          level: e,
-        },
-      },
-      success: (res) => {
-        console.log("请求成功", res);
-        console.log(e);
-        isRunning.value = e === 1 ; // 设置 isRunning 状态
-        if (e == 2) kaikai.value = "继续";
-        if (e == 1 || e == 0) kaikai.value = "开始";
-        // 在这里处理成功的逻辑
-      },
-      fail: (err) => {
-        console.error("请求失败", err);
-        // 在这里处理失败的逻辑
-      },
-    });
-  };
-  const getNumber = (e) => {
-    uni.request({
-      url: "https://iot-api.heclouds.com/thingmodel/set-device-property", // 请求的 URL
-      method: "POST", // 请求方法
-      header: {
-        "Content-Type": "application/json", // 设置请求头
-        // 如果需要，可以在这里添加其他请求头，例如认证 token
-        // "api-key": "your-api-key", // 示例：添加 API 密钥
-        authorization:
-          "version=2018-10-31&res=products%2FOrT98dB198%2Fdevices%2Flotus1&et=1917513743&method=md5&sign=rski44rCWDk0cXSVrbJOWg%3D%3D",
-      },
-  
-      data: {
-        product_id: "OrT98dB198",
-        device_name: "lotus1",
-        params: {
-          level: e,
-        },
-      },
-      success: (res) => {
-        console.log("请求成功", res);
-        console.log(e);
-        if (e == 2) kaikai.value = "继续";
-        if (e == 1 || e == 0) kaikai.value = "开始";
-        // 在这里处理成功的逻辑
-      },
-      fail: (err) => {
-        console.error("请求失败", err);
-        // 在这里处理失败的逻辑
-      },
-    });
-  };
-  function onLongPress(imageUrl) {
-    // 假设 items.value 是一个包含多个图片对象的数组
-    const allImageUrls = items.value.map(item => item.src); // 提取所有图片的 URL
-  
-    // 找到当前点击的图片在 allImageUrls 中的索引
-    const currentIndex = allImageUrls.indexOf(imageUrl);
-  
-    uni.previewImage({
-      current: currentIndex, // 当前要显示的图片url
-      urls: allImageUrls, // 需要预览的图片url列表数组
-      success: function(res) {
-        console.log('图片预览成功', res);
-      },
-      fail: function(err) {
-        console.error('图片预览失败', err);
+        defectCount.value = 0; // 重置 defectCount
+        items.value.forEach((e) => {
+          defectCount.value += e.defect_count || 0; // 累加 defect_count
+        });
+        defectCountNow.value = items.value[0]?.defect_count || 0; // 获取最新图片的 defect_count
+      } else {
+        console.error("获取图片失败", res);
       }
+    },
+    fail: (err) => {
+      console.error("请求失败", err);
+    },
+  });
+};
+const getDeviceState = () => {
+  uni.request({
+    url: "https://iot-api.heclouds.com/thingmodel/query-device-property", // 请求的 URL
+    method: "GET", // 请求方法
+    header: {
+      "Content-Type": "application/json", // 设置请求头
+      // 如果需要，可以在这里添加其他请求头，例如认证 token
+      // "api-key": "your-api-key", // 示例：添加 API 密钥
+      authorization:
+        "version=2018-10-31&res=products%2FOrT98dB198%2Fdevices%2Flotus1&et=1917513743&method=md5&sign=rski44rCWDk0cXSVrbJOWg%3D%3D",
+    },
+
+    data: {
+      product_id: "OrT98dB198",
+      device_name: "lotus1",
+    },
+    success: (res) => {
+      let obj = res.data.data.find((item) => item.identifier === "work_state");
+      //console.log("请求成功", obj);
+      if (obj.value == 1.0) {
+        deviceStatus.value = true;
+      } else {
+        deviceStatus.value = false;
+        isRunning.value = false;
+        kaikai.value = "开始";
+      }
+    },
+    fail: (err) => {
+      console.error("请求失败", err);
+      // 在这里处理失败的逻辑
+    },
+  });
+};
+// 辅助函数：解析日期时间字符串（保持不变）
+function parseDateTime(dateTimeStr) {
+  const dateTimeParts = dateTimeStr.split(" ");
+  const dateParts = dateTimeParts[0].split("-");
+  const timeParts = dateTimeParts[1].split(":");
+  return new Date(
+    parseInt(dateParts[0], 10), // 年
+    parseInt(dateParts[1], 10) - 1, // 月（从0开始）
+    parseInt(dateParts[2], 10), // 日
+    parseInt(timeParts[0], 10), // 时
+    parseInt(timeParts[1], 10), // 分
+    parseInt(timeParts[2], 10) // 秒
+  );
+}
+function formatCST(date) {
+  const d = new Date(date.getTime() + 8 * 3600_000); // +8h
+  return d.toISOString().replace("T", " ").substring(0, 19);
+}
+const startTime = ref("");
+const endTime = ref("");
+const kaishi = (e) => {
+  if (!isLoggedIn.value) {
+    uni.showToast({
+      title: `请先登录`,
+      icon: "error",
     });
+    return;
   }
+  if (!deviceStatus.value) {
+    uni.showToast({
+      title: `设备离线`,
+      icon: "error",
+    });
+    return;
+  }
+  uni.request({
+    url: "https://iot-api.heclouds.com/thingmodel/set-device-property", // 请求的 URL
+    method: "POST", // 请求方法
+    header: {
+      "Content-Type": "application/json", // 设置请求头
+      // 如果需要，可以在这里添加其他请求头，例如认证 token
+      // "api-key": "your-api-key", // 示例：添加 API 密钥
+      authorization:
+        "version=2018-10-31&res=products%2FOrT98dB198%2Fdevices%2Flotus1&et=1917513743&method=md5&sign=rski44rCWDk0cXSVrbJOWg%3D%3D",
+    },
+
+    data: {
+      product_id: "OrT98dB198",
+      device_name: "lotus1",
+      params: {
+        level: e,
+      },
+    },
+    success: (res) => {
+      console.log("请求成功", res);
+      console.log(e);
+      isRunning.value = e === 1 || e === 2; // 设置 isRunning 状态
+      if (e == 2) kaikai.value = "继续";
+      if (e == 1 || e == 0) kaikai.value = "开始";
+      // 在这里处理成功的逻辑
+      const currentTime = formatCST(new Date());
+      if (e == 1) {
+        startTime.value = currentTime; // 记录开始时间
+      } else if (e == 0 && startTime.value) {
+        endTime.value = currentTime; // 记录结束时间
+        addHistory(); // 添加历史记录
+      }
+    },
+    fail: (err) => {
+      console.error("请求失败", err);
+      // 在这里处理失败的逻辑
+    },
+  });
+};
+const addHistory = (e) => {
+  //console.log(31321231)
+  const userInfo = uni.getStorageSync("userInfo");
+  //console.log("用户信息", userInfo);
+  let defect_count = 0;
+  items.value.forEach((item) => {
+    // 过滤出在 startTime 和 endTime 之间的图片
+    const itemCreated = parseDateTime(item.created);
+    const startTimeParsed = startTime.value
+      ? parseDateTime(startTime.value)
+      : new Date(0); // 如果没有设置 startTime，则默认为 1970-01-01
+    const endTimeParsed = endTime.value
+      ? parseDateTime(endTime.value)
+      : new Date(); // 如果没有设置 endTime，则默认为当前时间
+    // 检查图片的创建时间是否在 startTime 和 endTime 之间
+    // console.log(item.created, startTime.value, endTime.value);
+    if (itemCreated >= startTimeParsed && itemCreated <= endTimeParsed) {
+      defect_count += item.defect_count || 0; // 累加 defect_count
+    }
+  });
+  const res = uniCloud.callFunction({
+    name: "createHistory",
+    data: {
+      userId:
+        userInfo.userId ||
+        "U" +
+          Math.floor(Math.random() * 1000)
+            .toString()
+            .padStart(3, "0"),
+      userName:
+        userInfo.username ||
+        ["张三", "李四", "王五"][Math.floor(Math.random() * 3)],
+      startTime:
+        startTime.value ||
+        new Date().toISOString().replace("T", " ").substring(0, 19),
+      endTime:
+        endTime.value ||
+        new Date().toISOString().replace("T", " ").substring(0, 19),
+      defectCount: defect_count || Math.floor(Math.random() * 50),
+      accuracy: Number((95 + Math.random() * 5).toFixed(1)),
+      status: "completed", //['completed', 'error', 'stopped', 'running'][Math.floor(Math.random() * 4)]
+    },
+  });
+  console.log("历史记录添加结果", res);
+};
+const getNumber = (e) => {
+  uni.request({
+    url: "https://iot-api.heclouds.com/thingmodel/set-device-property", // 请求的 URL
+    method: "POST", // 请求方法
+    header: {
+      "Content-Type": "application/json", // 设置请求头
+      // 如果需要，可以在这里添加其他请求头，例如认证 token
+      // "api-key": "your-api-key", // 示例：添加 API 密钥
+      authorization:
+        "version=2018-10-31&res=products%2FOrT98dB198%2Fdevices%2Flotus1&et=1917513743&method=md5&sign=rski44rCWDk0cXSVrbJOWg%3D%3D",
+    },
+
+    data: {
+      product_id: "OrT98dB198",
+      device_name: "lotus1",
+      params: {
+        level: e,
+      },
+    },
+    success: (res) => {
+      console.log("请求成功", res);
+      console.log(e);
+      if (e == 2) kaikai.value = "继续";
+      if (e == 1 || e == 0) kaikai.value = "开始";
+      // 在这里处理成功的逻辑
+    },
+    fail: (err) => {
+      console.error("请求失败", err);
+      // 在这里处理失败的逻辑
+    },
+  });
+};
+
+function onLongPress(imageUrl) {
+  // 假设 items.value 是一个包含多个图片对象的数组
+  const allImageUrls = items.value.map((item) => item.src); // 提取所有图片的 URL
+
+  // 找到当前点击的图片在 allImageUrls 中的索引
+  const currentIndex = allImageUrls.indexOf(imageUrl);
+
+  uni.previewImage({
+    current: currentIndex, // 当前要显示的图片url
+    urls: allImageUrls, // 需要预览的图片url列表数组
+    success: function (res) {
+      console.log("图片预览成功", res);
+    },
+    fail: function (err) {
+      console.error("图片预览失败", err);
+    },
+  });
+}
+const showLogin = () => {
+  if (isLoggedIn.value) return;
+  popup.value.open();
+  console.log("显示登录弹框");
+};
+
+const switchMode = () => {
+  isLoginMode.value = !isLoginMode.value;
+  form.username = '';
+  form.password = '';
+  form.confirmPassword = '';
+};
+
+const handleSubmit = async () => {
+  if (!form.username || !form.password) {
+    uni.showToast({
+      title: '请输入账号和密码',
+      icon: 'none'
+    });
+    return;
+  }
+  
+  if (!isLoginMode.value && form.password !== form.confirmPassword) {
+    uni.showToast({
+      title: '两次密码输入不一致',
+      icon: 'none'
+    });
+    return;
+  }
+  
+  isLoading.value = true;
+  
+  try {
+    if (isLoginMode.value) {
+      // 登录逻辑
+      const loginRes = await uniCloud.callFunction({
+        name: 'Login',
+        data: {
+          username: form.username,
+          password: form.password
+        }
+      });
+      console.log('Login Response:', loginRes,loginRes.result.message);
+      if (loginRes.result.code === 200) {
+        // 登录成功处理
+        await userStore.login({
+          token: loginRes.result.data.token,
+          userInfo: loginRes.result.data.userInfo
+        });
+        
+        uni.showToast({
+          title: '登录成功',
+          icon: 'success'
+        });
+        
+        popup.value.close();
+      } else {
+        throw new Error(loginRes.result.message || '登录失败');
+      }
+    } else {
+      // 注册逻辑
+      const registerRes = await uniCloud.callFunction({
+        name: 'Register',
+        data: {
+          username: form.username,
+          password: form.password
+        }
+      });
+      console.log('Register Response:', registerRes);
+      if (registerRes.result.code === 200) {
+        uni.showToast({
+          title: '注册成功，请登录',
+          icon: 'success'
+        });
+        // 注册后自动切换到登录模式
+        isLoginMode.value = true;
+      } else {
+        throw new Error(registerRes.result.message || '注册失败');
+      }
+    }
+  } catch (error) {
+    uni.showToast({
+      title: error.message,
+      icon: 'none'
+    });
+  } finally {
+    isLoading.value = false;
+    form.password = '';
+    form.confirmPassword = '';
+  }
+};
+onMounted(() => {
+  // 页面加载时检查登录状态
+  if (!isLoggedIn.value) {
+	showLogin();
+  }
+});
 </script>
 
 <style scoped>
@@ -359,10 +661,12 @@ const getImages = () => {
   align-items: center;
   justify-content: center;
 }
+
 .header-icon img {
   width: 53rpx;
   height: auto;
 }
+
 .header-title {
   font-size: 1.25rem;
   font-weight: bold;
@@ -375,6 +679,7 @@ const getImages = () => {
   border-radius: 24rpx;
   box-shadow: 0 16rpx 64rpx rgba(0, 0, 0, 0.1);
 }
+
 .detection-card {
   margin: 30rpx 30rpx 0;
   background: rgba(255, 255, 255, 0.8);
@@ -389,8 +694,8 @@ const getImages = () => {
   justify-content: space-between;
   align-items: center;
 }
-.nonono {
-}
+
+
 .card-title {
   display: flex;
   align-items: center;
@@ -482,6 +787,7 @@ const getImages = () => {
   100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.5;
   }
@@ -511,6 +817,11 @@ const getImages = () => {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.placeholder-image img {
+  width: 100%;
+  height: 100%;
 }
 
 .placeholder-text {
@@ -633,6 +944,107 @@ const getImages = () => {
 .nav-item.active .nav-label {
   color: #2563eb;
   font-weight: 500;
+}
+
+/* 登录弹框样式 */
+.login-container {
+  width: 600rpx;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20rpx);
+  border-radius: 32rpx;
+  overflow: hidden;
+  box-shadow: 0 32rpx 96rpx rgba(0, 0, 0, 0.2);
+}
+
+.login-header {
+  padding: 40rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+}
+
+.login-title {
+  font-size: 40rpx;
+  font-weight: bold;
+  color: white;
+}
+
+.login-close {
+  font-size: 48rpx;
+  color: rgba(255, 255, 255, 0.8);
+  padding: 0 20rpx;
+}
+
+.login-form {
+  padding: 40rpx;
+}
+
+.form-item {
+  margin-bottom: 40rpx;
+}
+
+.form-label {
+  display: block;
+  font-size: 32rpx;
+  color: #4b5563;
+  margin-bottom: 16rpx;
+  font-weight: 500;
+}
+
+.form-input {
+  width: 88%;
+  height: 96rpx;
+  padding: 0 32rpx;
+  background: #f9fafb;
+  border-radius: 16rpx;
+  font-size: 32rpx;
+  border: 2rpx solid #e5e7eb;
+  transition: all 0.2s;
+}
+
+.form-input:focus {
+  border-color: #2563eb;
+  background: #fff;
+}
+
+.input-placeholder {
+  color: #9ca3af;
+  font-size: 32rpx;
+}
+
+.login-btn {
+  width: 100%;
+  height: 96rpx;
+  line-height: 96rpx;
+  border-radius: 16rpx;
+  color: white;
+  font-size: 36rpx;
+  font-weight: bold;
+  margin-top: 48rpx;
+  border: none;
+  box-shadow: 0 8rpx 24rpx rgba(37, 99, 235, 0.3);
+  transition: all 0.2s;
+}
+
+.login-btn:active {
+  transform: scale(0.98);
+  opacity: 0.9;
+}
+
+.login-footer {
+  margin-top: 48rpx;
+  text-align: center;
+}
+
+.footer-text {
+  color: #4f46e5;
+  font-size: 28rpx;
+  text-decoration: underline;
+}
+
+.footer-text:active {
+  opacity: 0.8;
 }
 
 .icon {
