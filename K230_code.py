@@ -25,8 +25,7 @@ status_lock = _thread.allocate_lock()
 mqtt_lock = _thread.allocate_lock()
 shared_jpeg    = None
 has_new_frame  = False
-msg_counter = 0
-
+work_state  = 0.0
 # ===== 基本参数 =====
 root_path = "/sdcard/mp_deployment_source/"
 config_path = root_path + "deploy_config.json"
@@ -47,16 +46,18 @@ OUT_WIDTH = 640
 OUT_HEIGH = 360
 JPEG_QUALITY = 75
 
-# OneNET配置 - 修正为官方推荐格式[3,5](@ref)
+# ===== OneNET配置 =====
 product_id = "OrT98dB198"  # 替换为实际产品ID
 device_id = "lotus1"       # 替换为实际设备ID
 mqtt_server = "183.230.40.96"  # OneNET非SSL服务器地址[2](@ref)
 mqtt_port = 1883               # 推荐使用6002端口[2](@ref)
 mqtt_password = "version=2018-10-31&res=products%2FOrT98dB198%2Fdevices%2Flotus1&et=1917513743&method=md5&sign=rski44rCWDk0cXSVrbJOWg%3D%3D"  # 替换为实际Token
-
-# MQTT主题 - 使用官方标准格式[3](@ref)
+ONENET_PROP_FORMAT = "{\"id\":\"%u\", \"version\":\"1.0\", \"params\":%s}"  # 设备属性格式模板
+# =====MQTT主题 =====
 ONENET_TOPIC_PROP_SET = f"$sys/{product_id}/{device_id}/thing/property/set"
-
+ONENET_TOPIC_PROP_POST = f"$sys/{product_id}/{device_id}/thing/property/post"  # 设备属性上报请求
+ONENET_TOPIC_PROP_POST_REPLY = f"$sys/{product_id}/{device_id}/thing/property/post/reply"  # 设备属性上报响应
+ONENET_TOPIC_PROP_SET_REPLY = f"$sys/{product_id}/{device_id}/thing/property/set_reply"  # 设备属性设置响应
 def align_to_8(x):
     """
     将给定整数 x 向下对齐到 8 的倍数。
@@ -258,7 +259,7 @@ def upload_image(data, fracture_num):
             print("! 上传失败: 无效服务器响应")
             print(f"详情: {resp}")
         gc.collect()
-        time.sleep(attempt * 2 + 1)
+#        time.sleep(attempt * 2 + 1)
     print("✗ 所有上传尝试均失败")
     return False
 
@@ -266,66 +267,66 @@ def on_message(topic, msg):
     """
     MQTT消息回调 - 增加错误处理
     """
-    global work_status
     try:
         topic_str = topic.decode('utf-8')
         msg_str = msg.decode('utf-8')
         print(f"\n收到消息 - 主题: {topic_str}\n内容: {msg_str}")
+        # 处理设置请求
+        if topic_str == ONENET_TOPIC_PROP_SET:
+            try:
+                data = ujson.loads(msg_str)
+                msg_id = data.get('id', 0)
+                response_code = 200
+                response_msg = "success"
 
-        try:
-            data = ujson.loads(msg_str)
-            msg_id = data.get('id', 0)
-            response_code = 200
-            response_msg = "success"
+                if "params" in data and "level" in data["params"]:
+                    new_level = float(data["params"]["level"])
+                    print(f"接收level值: {new_level}")
 
-            if "params" in data and "level" in data["params"]:
-                new_level = float(data["params"]["level"])
-                print(f"接收level值: {new_level}")
+                    if new_level == 0.0:
+                        print("关闭")
+                        result = stop()
+                        print(f"work_status:{work_status}")
+                        if not result:
+                            response_code = 500
+                            response_msg = "Failed to stop "
+                    elif new_level == 1.0:
+                        print("开启")
+                        result = start()
+                        print(f"work_status:{work_status}")
+                        if not result:
+                            response_code = 500
+                            response_msg = "Failed to start "
+                    elif new_level == 2.0:
+                        print("暂停")
+                        result = pause()
+                        print(f"work_status:{work_status}")
+                        if not result:
+                            response_code = 500
+                            response_msg = "Failed to pause "
+                    else:
+                        print(f"无效level值: {new_level}")
+                        response_code = 400
+                        response_msg = "Invalid level value"
+                    # 发送响应
+                    response = {"id": msg_id, "code": response_code, "msg": response_msg}
+                    mqtt_client.publish(
+                        f"$sys/{product_id}/{device_id}/thing/property/set_reply",
+                        ujson.dumps(response)
+                    )
+                    print(f"已回复设置响应")
+            except Exception as e:
+                print(f"解析设置请求失败: {e}")
 
-                if new_level == 0.0:
-                    print("关闭")
-                    result = stop()
-                    print(f"work_status:{work_status}")
-                    if not result:
-                        response_code = 500
-                        response_msg = "Failed to stop camera"
-                elif new_level == 1.0:
-                    print("开启")
-                    result = start()
-                    print(f"work_status:{work_status}")
-                    if not result:
-                        response_code = 500
-                        response_msg = "Failed to start camera"
-                elif new_level == 2.0:
-                    print("暂停")
-                    result = pause()
-                    print(f"work_status:{work_status}")
-                    if not result:
-                        response_code = 500
-                        response_msg = "Failed to pause camera"
-                else:
-                    print(f"无效level值: {new_level}")
-                    response_code = 400
-                    response_msg = "Invalid level value"
+        elif topic_str == ONENET_TOPIC_PROP_POST_REPLY:
+            try:
 
-            else:
-                print("命令无效")
-                response_code = 400
-                response_msg = "Missing level parameter"
-
-            # 发送响应
-            response = {"id": msg_id, "code": response_code, "msg": response_msg}
-            mqtt_client.publish(
-                f"$sys/{product_id}/{device_id}/thing/property/set_reply",
-                ujson.dumps(response)
-            )
-            print(f"已回复设置响应")
-
-        except Exception as e:
-            print(f"解析设置请求失败: {e}")
-
+                print(f"OneNET确认收到数据上传: {msg_str}")
+            except Exception as e:
+                print(f"处理消息时出错: {e}")
     except Exception as e:
         print(f"处理消息时出错: {e}")
+
 
 # MQTT连接 - 重构连接逻辑[2,6](@ref)
 def connect_mqtt():
@@ -354,7 +355,10 @@ def connect_mqtt():
         # 订阅必要主题
         print(f"订阅: {ONENET_TOPIC_PROP_SET}")
         client.subscribe(ONENET_TOPIC_PROP_SET)
-
+        print("2")
+        print(f"订阅主题: {ONENET_TOPIC_PROP_POST_REPLY}")
+        client.subscribe(ONENET_TOPIC_PROP_POST_REPLY)
+        print("1")
         return client
 
     except Exception as e:
@@ -377,6 +381,7 @@ def AI_detect():
     global ai2d_builder, ai2d_output_tensor, kpu, frame_size, strides
     global num_classes, confidence_threshold, nms_threshold, anchors, kmodel_frame_size
     global labels, nms_option
+    gc.collect()
     data = np.ones((1,3,kmodel_frame_size[1],kmodel_frame_size[0]),dtype=np.uint8)
     ai2d_output_tensor = nn.from_numpy(data)
     img = sensor.snapshot(chn=CAM_CHN_ID_2)
@@ -401,8 +406,6 @@ def AI_detect():
         confidence_threshold, nms_threshold,
         anchors, nms_option
     )
-    del outs
-    gc.collect()
     draw = img.copy()
     fracture_num = 0
     if dets:
@@ -417,47 +420,25 @@ def AI_detect():
                 fracture_num+=1
             draw.draw_rectangle(x, y, w, h, color=color)
             draw.draw_string_advanced(x, y, 16, txt, color=color)
+    del outs, img
+    gc.collect()
     if fracture_num:
         return compress_image(draw), fracture_num
     else:
         return None
-
-def init():
-    """
-    初始化函数
-    """
-    global sensor
-    try:
-        if sensor is not None:
-            return True
-        # 初始化 sensor 和 Display
-        sensor = Sensor(); sensor.reset()
-        sensor.set_framesize(width=DISPLAY_WIDTH, height=align_to_8(DISPLAY_HEIGHT))
-        sensor.set_pixformat(Sensor.YUV420SP)
-        sensor.set_framesize(width=OUT_WIDTH, height=OUT_HEIGH, chn=CAM_CHN_ID_2)
-        sensor.set_pixformat(Sensor.RGB888, chn=CAM_CHN_ID_2)
-        cfg = sensor.bind_info(x=0,y=0,chn=CAM_CHN_ID_0)
-        Display.bind_layer(**cfg, layer=Display.LAYER_VIDEO1)
-        Display.init(Display.NT35516, width=DISPLAY_WIDTH, height=DISPLAY_HEIGHT)
-        MediaManager.init()
-        print("初始化成功！")
-        return True
-    except Exception as e:
-        print(f"初始化失败: {e}")
-        return False
 
 def start():
     """
     开始工作函数
     """
     global sensor, work_status
-    if sensor is None:
-        if not init():
-            return False
 
     try:
         sensor.reset()
         sensor.run()
+        osd_img.clear()
+        osd_img.draw_string_advanced(0, 0, 32, "检测已开始", color = (255,0,0))
+        Display.show_image(osd_img, 0, 0, Display.LAYER_OSD3)
         with status_lock:
             work_status = True
         print("已启动！")
@@ -475,14 +456,14 @@ def stop():
         has_new_frame = False
     with status_lock:
         work_status = False
+    osd_img.clear()
+    osd_img.draw_string_advanced(0, 0, 32, "检测未开始", color = (255,0,0))
+    Display.show_image(osd_img, 0, 0, Display.LAYER_OSD3)
     sensor.reset()
     sensor.stop()
-    Display.deinit()
     gc.collect()
-    MediaManager.deinit()
-    sensor =None
     print("已停止！")
-    hardware_reboot()
+#    hardware_reboot()
 
 def pause():
     """
@@ -497,7 +478,9 @@ def pause():
             has_new_frame = False
         with status_lock:
             work_status = False
-        sensor.stop()
+        osd_img.clear()
+        osd_img.draw_string_advanced(0, 0, 32, "检测已暂停", color = (255,0,0))
+        Display.show_image(osd_img, 0, 0, Display.LAYER_OSD3)
         print("已暂停！")
         return True
     except Exception as e:
@@ -521,7 +504,6 @@ def detect_thread():
                     has_new_frame = True
             else:
                 print(f"[Detect] Frame is normal")
-            time.sleep(0.05)
 
 def upload_thread():
     """
@@ -546,7 +528,23 @@ def upload_thread():
                     print("[Upload] 图片与数量上传失败或重试")
                 del buf
                 gc.collect()
-            time.sleep(0.05)
+
+def publish_work_state_data(client, data, msg_id):
+    """上传工作状态数据到OneNET平台 - 使用属性格式"""
+    try:
+        # 构造属性参数
+        params = ujson.dumps({"work_state": {"value": round(data, 1)}})
+        # 格式化完整JSON
+        json_payload = ONENET_PROP_FORMAT % (msg_id, params)
+
+        # 发布到OneNET
+        client.publish(ONENET_TOPIC_PROP_POST, json_payload)
+        print(f"已上传设备状态: {'开启' if data == 1.0 else '关闭'} (消息ID: {msg_id})")
+        print(f"Payload: {json_payload}")
+        return True
+    except Exception as e:
+        print(f"数据上传失败: {e}")
+        return False
 
 def main():
     """
@@ -555,7 +553,7 @@ def main():
     conf = read_deploy_config(config_path)
     # 声明全局变量
     global labels, confidence_threshold, nms_threshold, num_classes
-    global anchors, kmodel_frame_size, frame_size, strides, nms_option
+    global anchors, kmodel_frame_size, frame_size, strides, nms_option, osd_img
     global ai2d_builder, ai2d_output_tensor, kpu, sensor, mqtt_client, work_status
 
     # 使用json读取内容初始化部署变量
@@ -589,36 +587,130 @@ def main():
     ai2d.set_resize_param(True, nn.interp_method.tf_bilinear, nn.interp_mode.half_pixel )
     ai2d_builder = ai2d.build([1,3,OUT_HEIGH,OUT_WIDTH], [1,3,kmodel_frame_size[1],kmodel_frame_size[0]])
 
+    try:
+        # 初始化 sensor 和 Display
+        sensor = Sensor(); sensor.reset()
+        # 设置镜像
+        sensor.set_hmirror(False)
+        # 设置翻转
+        sensor.set_vflip(False)
+        sensor.set_framesize(width=DISPLAY_WIDTH, height=align_to_8(DISPLAY_HEIGHT))
+        sensor.set_pixformat(Sensor.YUV420SP)
+        sensor.set_framesize(width=OUT_WIDTH, height=OUT_HEIGH, chn=CAM_CHN_ID_2)
+        sensor.set_pixformat(Sensor.RGB888, chn=CAM_CHN_ID_2)
+        cfg = sensor.bind_info(x=0,y=0,chn=CAM_CHN_ID_0)
+        Display.bind_layer(**cfg, layer=Display.LAYER_VIDEO1)
+        Display.init(Display.NT35516, width=DISPLAY_WIDTH, height=DISPLAY_HEIGHT)
+        osd_img = image.Image(DISPLAY_WIDTH, align_to_8(DISPLAY_HEIGHT), image.ARGB8888)
+        MediaManager.init()
+        osd_img.clear()
+        osd_img.draw_string_advanced(0, 0, 32, "检测未开始", color = (255,0,0))
+        Display.show_image(osd_img, 0, 0, Display.LAYER_OSD3)
+        work_state = 1.0
+        print("初始化成功！")
+    except Exception as e:
+        print(f"初始化失败: {e}")
+        hardware_reboot()
+
     work_status = False
-    sensor = None
 
     # 网络检测
     if not connect_ethernet():
         hardware_reboot()
-    test_server_connection()
+
+    if not test_server_connection():
+        hardware_reboot()
 
     mqtt_client = connect_mqtt()
     if not mqtt_client:
+        hardware_reboot()
         raise Exception("MQTT连接失败")
+    success = publish_work_state_data(mqtt_client, work_state, 1)
 
     # 启动检测和上传线程
     _thread.start_new_thread(detect_thread, ())
     _thread.start_new_thread(upload_thread, ())
 
+    mqtt_last_ping = time.time()
+    mqtt_ping_interval = 30
+    message_id = 1  # 消息ID计数器
     try:
-        # 主线程闲置，仅做监控
         while True:
+            mqtt_current_time = time.time()
+            if mqtt_current_time - mqtt_last_ping >= mqtt_ping_interval:
+                try:
+                    with mqtt_lock:
+                        if mqtt_client:
+                            mqtt_client.ping()
+                            print("✓ MQTT心跳已发送")
+
+                    mqtt_last_ping = mqtt_current_time
+                except Exception as e:
+                    print(f"✗ 发送心跳失败: {e}")
+                    # 尝试重连
+                    try:
+                        with mqtt_lock:
+                            if mqtt_client:
+                                mqtt_client.disconnect()
+                        print("尝试重新连接MQTT...")
+                        mqtt_client = connect_mqtt()
+                        if mqtt_client:
+                            last_ping_time = current_time
+                            print("✓ MQTT重连成功")
+                        else:
+                            print("✗ MQTT重连失败")
+                    except Exception as reconnect_e:
+                        print(f"重连失败: {reconnect_e}")
+
+            # 检查MQTT消息
             with mqtt_lock:
-                mqtt_client.check_msg()
-            time.sleep(1)
+                if mqtt_client:
+                    mqtt_client.check_msg()
+
             gc.collect()
-    except KeyboardInterrupt:
-        # 通知子线程退出
-        work_status = False
-        time.sleep(0.1)
+    except Exception as e:
+        print("\n=== 收到停止信号，开始清理资源 ===")
+        work_state = 0.0
+        with status_lock:
+            work_status = False
+
+        if mqtt_client:
+            success = publish_work_state_data(mqtt_client, work_state, 1)
+
+            print("关闭MQTT连接...")
+            try:
+                with mqtt_lock:
+                    mqtt_client.disconnect()
+                    mqtt_client = None
+            except Exception as e:
+                print(f"MQTT关闭异常: {e}")
+
+
+        print("释放显示资源...")
+        try:
+            Display.deinit()
+        except Exception as e:
+            print(f"显示释放异常: {e}")
+
+        print("释放媒体资源...")
+        try:
+            MediaManager.deinit()
+        except Exception as e:
+            print(f"媒体释放异常: {e}")
+
+        print("释放AI资源...")
+        try:
+            kpu = None
+            nn.shrink_memory_pool()
+        except Exception as e:
+            print(f"AI资源释放异常: {e}")
+
+        print("执行最终垃圾回收...")
         gc.collect()
-        MediaManager.deinit()
-        print("主程序退出")
+        time.sleep(1)
+
+        print("=== 资源清理完成，安全退出 ===")
+#        hardware_reboot()
 
 if __name__ == "__main__":
     main()
