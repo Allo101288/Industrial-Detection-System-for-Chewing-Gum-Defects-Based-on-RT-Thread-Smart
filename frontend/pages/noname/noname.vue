@@ -576,6 +576,9 @@ function extractDaysFromMessage(message) {
   background: linear-gradient(135deg, #f0f4ff 0%, #e0e7ff 50%, #f3e8ff 100%);
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
+  margin: 0 auto;
+  max-width: 980px; 
 }
 
 .header {
@@ -737,6 +740,9 @@ function extractDaysFromMessage(message) {
   left: 0;
   right: 0;
   padding: 0 30rpx;
+  box-sizing: border-box;
+  margin: 0 auto;
+  max-width: 980px; /* 限制输入区域宽度 */
 }
 
 .input-card {

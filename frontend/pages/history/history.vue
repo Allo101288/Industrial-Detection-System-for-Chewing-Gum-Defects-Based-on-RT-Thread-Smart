@@ -72,13 +72,19 @@
     </view>
 
     <!-- History List -->
-    <scroll-view
+    <!-- <scroll-view
       class="history-list"
       scroll-y
       @scrolltolower="loadMore"
       :refresher-enabled="true"
       :refresher-triggered="isRefreshing"
       @refresherrefresh="onRefresh"
+    > -->
+    <scroll-view
+      class="history-list"
+      scroll-y
+      @scrolltolower="loadMore"
+      
     >
       <view class="list-container">
         <view
@@ -610,6 +616,9 @@ onMounted(() => {
 .container {
   min-height: 100vh;
   background: linear-gradient(135deg, #f0f4ff 0%, #e0e7ff 50%, #f3e8ff 100%);
+  box-sizing: border-box;
+  margin: 0 auto;
+  max-width: 980px; /* 限制输入区域宽度 */
 }
 
 .header {

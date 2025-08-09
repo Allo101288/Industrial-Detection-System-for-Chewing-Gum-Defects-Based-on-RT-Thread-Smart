@@ -26,7 +26,7 @@
           <text>{{ deviceStatus ? "设备在线" : "设备离线" }}</text>
         </view>
         <view class="status-badge" :class="isRunning ? 'running' : 'stopped'">
-          <text>{{ isRunning ? "运行中" : "已停止" }}</text>
+          <text>{{ runStatus }}</text>
         </view>
       </view>
       <view class="status-grid">
@@ -37,13 +37,13 @@
           <text class="status-number">{{ defectCount }}</text>
           <text class="status-label">缺陷总数</text>
         </view>
-        <!-- <view class="status-item">
+        <view class="status-item">
           <view class="status-icon status-icon-green">
-            <text class="icon">✅</text>
+            <text class="icon">🌀</text>
           </view>
-          <text class="status-number">99.2%</text>
-          <text class="status-label">检测精度</text>
-        </view> -->
+          <text class="status-number">{{ speed }}%</text>
+          <text class="status-label">当前转速</text>
+        </view>
         <view class="status-item">
           <view class="status-icon status-icon-orange">
             <text class="icon">⚠️</text>
@@ -53,6 +53,37 @@
         </view>
       </view>
     </view>
+
+    <!-- Speed Control (转速滑块) -->
+    <view class="speed-card">
+      <view class="speed-header">
+        <text class="speed-title">设备转速</text>
+        <!-- <text class="speed-value">{{ speed }}%</text> -->
+      </view>
+      <view class="speed-slider-row">
+        <text class="speed-mark">0%</text>
+        <slider
+          class="speed-slider"
+          :value="speed"
+          min="0"
+          max="100"
+          step="1"
+          @changing="onSpeedChanging"
+          @change="onSpeedChange"
+          activeColor="#4f46e5"
+          backgroundColor="#e5e7eb"
+          block-size="20"
+          :disabled="!isRunning||runStatus=='已暂停'" 
+        />
+        <text class="speed-mark">100%</text>
+      </view>
+      <view class="speed-hints">
+        <text class="hint">滑动调整转速，松手即生效</text>
+        <text class="hint" v-if="!deviceStatus">当前设备离线，无法设置</text>
+      </view>
+    </view>
+
+    <!-- Control Buttons -->
     <view class="control-buttons">
       <button class="control-btn start-btn" @click="kaishi(1.0)">
         <text class="btn-icon">▶️</text>
@@ -67,6 +98,7 @@
         <text>结束</text>
       </button>
     </view>
+
     <!-- Real-time Display -->
     <view class="detection-card">
       <view class="card-header nonono">
@@ -120,70 +152,73 @@
         <text class="nav-label">个人</text>
       </view>
     </view> -->
-	<uni-popup ref="popup" type="center" :mask-click="false">
+    <uni-popup ref="popup" type="center" :mask-click="false">
       <view class="login-container">
         <view class="login-header">
-          <text class="login-title">{{ isLoginMode ? '登录' : '注册' }}</text>
+          <text class="login-title">{{ isLoginMode ? "登录" : "注册" }}</text>
           <text class="login-close" @click="popup.close">×</text>
         </view>
-        
+
         <view class="login-form">
           <view class="form-item">
             <text class="form-label">账号</text>
-            <input 
-              class="form-input" 
-              v-model="form.username" 
-              placeholder="请输入账号" 
+            <input
+              class="form-input"
+              v-model="form.username"
+              placeholder="请输入账号"
               placeholder-class="input-placeholder"
             />
           </view>
-          
+
           <view class="form-item">
             <text class="form-label">密码</text>
-            <input 
-              class="form-input" 
-              v-model="form.password" 
-              placeholder="请输入密码" 
+            <input
+              class="form-input"
+              v-model="form.password"
+              placeholder="请输入密码"
               placeholder-class="input-placeholder"
               password
             />
           </view>
-          
+
           <view v-if="!isLoginMode" class="form-item">
             <text class="form-label">确认密码</text>
-            <input 
-              class="form-input" 
-              v-model="form.confirmPassword" 
-              placeholder="请再次输入密码" 
+            <input
+              class="form-input"
+              v-model="form.confirmPassword"
+              placeholder="请再次输入密码"
               placeholder-class="input-placeholder"
               password
             />
           </view>
-          
-          <button 
-            class="login-btn" 
-            :style="{background: isLoginMode ? 'linear-gradient(135deg, #2563eb 0%, #4f46e5 100%)' : 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)'}"
+
+          <button
+            class="login-btn"
+            :style="{
+              background: isLoginMode
+                ? 'linear-gradient(135deg, #2563eb 0%, #4f46e5 100%)'
+                : 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+            }"
             @click="handleSubmit"
             :loading="isLoading"
           >
-            {{ isLoginMode ? '登 录' : '注 册' }}
+            {{ isLoginMode ? "登 录" : "注 册" }}
           </button>
-          
+
           <view class="login-footer">
             <text class="footer-text" @click="switchMode">
-              {{ isLoginMode ? '没有账号？立即注册' : '已有账号？立即登录' }}
+              {{ isLoginMode ? "没有账号？立即注册" : "已有账号？立即登录" }}
             </text>
           </view>
         </view>
       </view>
     </uni-popup>
   </view>
-      <!-- 登录弹框 -->
-	  
+  <!-- 登录弹框 -->
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, } from "vue";
+import { ref, reactive, onMounted } from "vue";
 //import { uni } from 'some-uni-library' // Declare the uni variable here
 import { onShow, onLoad, onHide } from "@dcloudio/uni-app";
 //import Loading from "../../components/Loading.vue";
@@ -197,7 +232,7 @@ const checkLoginStatus = async () => {
 };
 checkLoginStatus();
 // 检查登录状态
-
+const isLocked = ref(true)   // true 时滑块变灰，不可拖动
 const { isLoggedIn, userName } = storeToRefs(userStore);
 console.log("用户登录状态：", isLoggedIn.value, "用户名：", userName.value);
 const popup = ref(null);
@@ -205,11 +240,12 @@ const isLoginMode = ref(true);
 const isLoading = ref(false);
 
 const form = reactive({
-  username: '',
-  password: '',
-  confirmPassword: ''
+  username: "",
+  password: "",
+  confirmPassword: "",
 });
 const isRunning = ref(false);
+const runStatus = ref("未开始");
 let timer1 = null,
   timer2 = null;
 const kaikai = ref("开始");
@@ -218,9 +254,9 @@ const defectCountNow = ref(0);
 const deviceStatus = ref(false); //设备连接状态
 onShow(() => {
   getImages(); // 立即获取一次
-  timer1 = setInterval(getImages, 500); // 每0.5秒获取一次
+  timer1 = setInterval(getImages, 250); // 每0.25秒获取一次
   getDeviceState();
-  timer2 = setInterval(getDeviceState, 2000); // 每2秒获取一次
+  timer2 = setInterval(getDeviceState, 1500); // 每1.5秒获取一次
 });
 
 onHide(() => {
@@ -231,11 +267,7 @@ onHide(() => {
     timer2 = null;
   }
 });
-const items = ref([
-  //   {
-  //     src: "https://picsum.photos/200",
-  //   },
-]);
+const items = ref([]);
 // const detectionData = ref([
 //   { time: "2025-07-07 19:33:36", count: 2, status: "warning" },
 //   { time: "2025-07-07 19:33:34", count: 1, status: "normal" },
@@ -290,6 +322,7 @@ const getImages = () => {
 
         // 如果 items 是空，则直接赋值；否则将新筛选的结果添加到数组头部
         if (filteredImages.length > 0) {
+          if (items.value.length != 0) kaishi(2.0); // 自动切换到暂停状态
           items.value = [...filteredImages, ...items.value];
         }
         defectCount.value = 0; // 重置 defectCount
@@ -339,6 +372,40 @@ const getDeviceState = () => {
     },
   });
 };
+//获取运行状态
+const getRunningState = () => {
+  uni.request({
+    url: "https://iot-api.heclouds.com/thingmodel/query-device-property", // 请求的 URL
+    method: "GET", // 请求方法
+    header: {
+      "Content-Type": "application/json", // 设置请求头
+      // 如果需要，可以在这里添加其他请求头，例如认证 token
+      // "api-key": "your-api-key", // 示例：添加 API 密钥
+      authorization:
+        "version=2018-10-31&res=products%2FOrT98dB198%2Fdevices%2Flotus1&et=1917513743&method=md5&sign=rski44rCWDk0cXSVrbJOWg%3D%3D",
+    },
+
+    data: {
+      product_id: "OrT98dB198",
+      device_name: "lotus1",
+    },
+    success: (res) => {
+      let obj = res.data.data.find((item) => item.identifier === "work_state");
+      console.log("请求成功", obj);
+      if (obj.value == 1.0) {
+        isRunning.value = true;
+        kaikai.value = "继续";
+      } else {
+        isRunning.value = false;
+        kaikai.value = "开始";
+      }
+    },
+    fail: (err) => {
+      console.error("请求失败", err);
+      // 在这里处理失败的逻辑
+    },
+  });
+};
 // 辅助函数：解析日期时间字符串（保持不变）
 function parseDateTime(dateTimeStr) {
   const dateTimeParts = dateTimeStr.split(" ");
@@ -374,6 +441,13 @@ const kaishi = (e) => {
     });
     return;
   }
+  if(kaikai.value == '未开始'&&(e==2||e==0)){
+    uni.showToast({
+      title: `设备未开启`,
+      icon: "error",
+    });
+    return ;
+  }
   uni.request({
     url: "https://iot-api.heclouds.com/thingmodel/set-device-property", // 请求的 URL
     method: "POST", // 请求方法
@@ -396,15 +470,30 @@ const kaishi = (e) => {
       console.log("请求成功", res);
       console.log(e);
       isRunning.value = e === 1 || e === 2; // 设置 isRunning 状态
-      if (e == 2) kaikai.value = "继续";
+      if (e == 2) {
+        kaikai.value = "继续";
+        runStatus.value = "已暂停";
+      }
+      if(e==1&&kaikai.value=='开始') {
+        speed.value = 30; // 重置转速
+        sendSpeed(30);
+      }
       if (e == 1 || e == 0) kaikai.value = "开始";
       // 在这里处理成功的逻辑
       const currentTime = formatCST(new Date());
       if (e == 1) {
         startTime.value = currentTime; // 记录开始时间
+        runStatus.value = "已开始";
+        
+        
       } else if (e == 0 && startTime.value) {
+        runStatus.value = "未开始";
         endTime.value = currentTime; // 记录结束时间
         addHistory(); // 添加历史记录
+        uni.showToast({
+          title: `检测已结束`,
+          icon: "success",
+        });
       }
     },
     fail: (err) => {
@@ -517,132 +606,180 @@ const showLogin = () => {
 
 const switchMode = () => {
   isLoginMode.value = !isLoginMode.value;
-  form.username = '';
-  form.password = '';
-  form.confirmPassword = '';
+  form.username = "";
+  form.password = "";
+  form.confirmPassword = "";
 };
 
 const handleSubmit = async () => {
   if (!form.username || !form.password) {
     uni.showToast({
-      title: '请输入账号和密码',
-      icon: 'none'
+      title: "请输入账号和密码",
+      icon: "none",
     });
     return;
   }
-  
+
   if (!isLoginMode.value && form.password !== form.confirmPassword) {
     uni.showToast({
-      title: '两次密码输入不一致',
-      icon: 'none'
+      title: "两次密码输入不一致",
+      icon: "none",
     });
     return;
   }
-  
+
   isLoading.value = true;
-  
+
   try {
     if (isLoginMode.value) {
       // 登录逻辑
       const loginRes = await uniCloud.callFunction({
-        name: 'Login',
+        name: "Login",
         data: {
           username: form.username,
-          password: form.password
-        }
+          password: form.password,
+        },
       });
-      console.log('Login Response:', loginRes,loginRes.result.message);
+      console.log("Login Response:", loginRes, loginRes.result.message);
       if (loginRes.result.code === 200) {
         // 登录成功处理
         await userStore.login({
           token: loginRes.result.data.token,
-          userInfo: loginRes.result.data.userInfo
+          userInfo: loginRes.result.data.userInfo,
         });
-        
+
         uni.showToast({
-          title: '登录成功',
-          icon: 'success'
+          title: "登录成功",
+          icon: "success",
         });
-        
+
         popup.value.close();
       } else {
-        throw new Error(loginRes.result.message || '登录失败');
+        throw new Error(loginRes.result.message || "登录失败");
       }
     } else {
       // 注册逻辑
       const registerRes = await uniCloud.callFunction({
-        name: 'Register',
+        name: "Register",
         data: {
           username: form.username,
-          password: form.password
-        }
+          password: form.password,
+        },
       });
-      console.log('Register Response:', registerRes);
+      console.log("Register Response:", registerRes);
       if (registerRes.result.code === 200) {
         uni.showToast({
-          title: '注册成功，请登录',
-          icon: 'success'
+          title: "注册成功，请登录",
+          icon: "success",
         });
         // 注册后自动切换到登录模式
         isLoginMode.value = true;
       } else {
-        throw new Error(registerRes.result.message || '注册失败');
+        throw new Error(registerRes.result.message || "注册失败");
       }
     }
   } catch (error) {
     uni.showToast({
       title: error.message,
-      icon: 'none'
+      icon: "none",
     });
   } finally {
     isLoading.value = false;
-    form.password = '';
-    form.confirmPassword = '';
+    form.password = "";
+    form.confirmPassword = "";
   }
 };
+// 转速
+const speed = ref(30); // 0-100%
+const onSpeedChanging = (e) => {
+  speed.value = e.detail.value;
+};
+const onSpeedChange = (e) => {
+  speed.value = e.detail.value;
+  sendSpeed(speed.value);
+};
+const sendSpeed = (val) => {
+  if (!isLoggedIn.value) {
+    uni.showToast({ title: "请先登录", icon: "none" });
+    return;
+  }
+  if (!deviceStatus.value) {
+    uni.showToast({ title: "设备离线，无法设置", icon: "none" });
+    return;
+  }
+  uni.request({
+    url: "https://iot-api.heclouds.com/thingmodel/set-device-property",
+    method: "POST",
+    header: {
+      "Content-Type": "application/json",
+      authorization:
+        "version=2018-10-31&res=products%2FOrT98dB198%2Fdevices%2Flotus1&et=1917513743&method=md5&sign=rski44rCWDk0cXSVrbJOWg%3D%3D",
+    },
+    data: {
+      product_id: "OrT98dB198",
+      device_name: "lotus1",
+      params: {
+        // 服务端需支持 speed 属性
+        speed_control: val,
+      },
+    },
+    success: () => {
+      console.log("设置转速成功", val);
+      //uni.showToast({ title: `已设置转速为 ${val}%`, icon: "success" });
+    },
+    fail: (err) => {
+      console.error("设置转速失败", err);
+      uni.showToast({ title: "设置转速失败", icon: "none" });
+    },
+  });
+};
+
 onMounted(() => {
   // 页面加载时检查登录状态
   if (!isLoggedIn.value) {
-	showLogin();
+    showLogin();
   }
 });
 </script>
 
 <style scoped>
+/* Layout: 居中容器，移动端一屏，桌面端宽度限制 */
 .container {
   min-height: 100vh;
   background: linear-gradient(135deg, #f0f4ff 0%, #e0e7ff 50%, #f3e8ff 100%);
-  padding-bottom: 120rpx;
+  padding-bottom: 40rpx;
+  box-sizing: border-box;
+  margin: 0 auto;
+  max-width: 980px;
 }
 
+/* Header */
 .header {
   background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
-  padding: 40rpx 40rpx 40rpx;
+  padding: 20rpx 20rpx 20rpx;
   color: white;
   position: relative;
   overflow: hidden;
+  /* border-bottom-left-radius: 24rpx;
+  border-bottom-right-radius: 24rpx; */
 }
-
 .header-bg-circle {
   position: absolute;
   background: rgba(255, 255, 255, 0.1);
   border-radius: 50%;
 }
-
 .header-bg-circle-1 {
   width: 200rpx;
   height: 200rpx;
   top: -100rpx;
   right: -100rpx;
 }
-
 .header-bg-circle-2 {
   width: 160rpx;
   height: 160rpx;
   bottom: -80rpx;
   left: -80rpx;
 }
-
 .header-content {
   display: flex;
   align-items: center;
@@ -651,7 +788,6 @@ onMounted(() => {
   position: relative;
   z-index: 10;
 }
-
 .header-icon {
   width: 64rpx;
   height: 64rpx;
@@ -661,41 +797,33 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
 }
-
 .header-icon img {
   width: 53rpx;
   height: auto;
 }
-
 .header-title {
   font-size: 1.25rem;
   font-weight: bold;
 }
 
-.status-card {
+/* Card Blocks */
+.status-card,
+.detection-card,
+.speed-card {
   margin: 30rpx 30rpx 0;
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(20rpx);
   border-radius: 24rpx;
   box-shadow: 0 16rpx 64rpx rgba(0, 0, 0, 0.1);
 }
 
-.detection-card {
-  margin: 30rpx 30rpx 0;
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(20rpx);
-  border-radius: 24rpx;
-  box-shadow: 0 16rpx 64rpx rgba(0, 0, 0, 0.1);
-}
-
+/* Status Card */
 .card-header {
   padding: 30rpx 30rpx 24rpx;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
-
-
 .card-title {
   display: flex;
   align-items: center;
@@ -704,23 +832,23 @@ onMounted(() => {
   font-weight: bold;
   color: #1f2937;
 }
-
 .activity-icon {
   font-size: 40rpx;
 }
-
+.status-right {
+  display: flex;
+  gap: 16rpx;
+}
 .status-badge {
   padding: 12rpx 24rpx;
   border-radius: 20rpx;
   font-size: 24rpx;
   font-weight: 500;
 }
-
 .status-badge.running {
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   color: white;
 }
-
 .status-badge.stopped {
   background: #e5e7eb;
   color: #6b7280;
@@ -731,7 +859,6 @@ onMounted(() => {
   padding: 0 40rpx 30rpx;
   gap: 32rpx;
 }
-
 .status-item {
   flex: 1;
   text-align: center;
@@ -740,7 +867,6 @@ onMounted(() => {
   align-items: center;
   gap: 8rpx;
 }
-
 .status-icon {
   width: 96rpx;
   height: 96rpx;
@@ -750,126 +876,75 @@ onMounted(() => {
   justify-content: center;
   font-size: 48rpx;
 }
-
 .status-icon-blue {
   background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
 }
-
 .status-icon-green {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: linear-gradient(135deg, #619d89 0%, #6fb7a1 100%);
 }
-
 .status-icon-orange {
   background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
 }
-
 .status-number {
   font-size: 48rpx;
   font-weight: bold;
   color: #1f2937;
 }
-
 .status-label {
   font-size: 24rpx;
   color: #6b7280;
 }
 
-.live-indicator {
-  width: 24rpx;
-  height: 24rpx;
-  background: #10b981;
-  border-radius: 50%;
-  animation: pulse 2s infinite;
+/* Speed Card */
+.speed-card {
+  padding: 20rpx 30rpx 26rpx;
 }
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-
-  50% {
-    opacity: 0.5;
-  }
-}
-
-.detection-list {
-  padding: 20rpx 38rpx 38rpx;
-  overflow-y: auto;
-  height: 50vh;
-}
-
-.detection-item {
-  margin-bottom: 32rpx;
-}
-
-.image-container {
-  position: relative;
-  border-radius: 16rpx;
-  overflow: hidden;
-  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.1);
-}
-
-.placeholder-image {
-  width: 100%;
-  height: 400rpx;
-  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+.speed-header {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
+  margin-bottom: 12rpx;
 }
-
-.placeholder-image img {
-  width: 100%;
-  height: 100%;
+.speed-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1f2937;
 }
-
-.placeholder-text {
-  color: #6b7280;
+.speed-value {
   font-size: 28rpx;
+  font-weight: 600;
+  color: #4f46e5;
 }
-
-.status-overlay {
-  position: absolute;
-  top: 24rpx;
-  left: 24rpx;
-  padding: 8rpx 16rpx;
-  border-radius: 16rpx;
-  font-size: 24rpx;
-  font-weight: 500;
-  color: white;
+.speed-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
 }
-
-.status-overlay.good {
-  background: #10b981;
+.speed-slider {
+  flex: 1;
 }
-
-.status-overlay.warning {
-  background: #ef4444;
+.speed-mark {
+  font-size: 22rpx;
+  color: #6b7280;
+  width: 60rpx;
+  text-align: center;
 }
-
-.status-overlay.normal {
-  background: #f59e0b;
-}
-
-.detection-info {
+.speed-hints {
   display: flex;
   justify-content: space-between;
-  padding: 16rpx;
-  font-size: 24rpx;
-  color: #6b7280;
+  margin-top: 8rpx;
+}
+.hint {
+  font-size: 22rpx;
+  color: #9ca3af;
 }
 
-.detection-count {
-  font-weight: 500;
-}
-
+/* Control Buttons */
 .control-buttons {
   display: flex;
   gap: 32rpx;
-  margin: 30rpx;
+  margin: 26rpx 30rpx 0;
 }
-
 .control-btn {
   flex: 1;
   height: 92rpx;
@@ -885,68 +960,85 @@ onMounted(() => {
   box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.2);
   transition: transform 0.2s;
 }
-
 .control-btn:active {
   transform: scale(0.95);
 }
-
 .start-btn {
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
 }
-
 .pause-btn {
   background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
 }
-
 .stop-btn {
   background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
 }
-
 .btn-icon {
   font-size: 40rpx;
 }
 
-.bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20rpx);
-  border-top: 1rpx solid #e5e7eb;
-  display: flex;
-  padding: 24rpx 0;
-}
-
-.nav-item {
+.detection-card {
   flex: 1;
+}
+.detection-list {
+  padding: 20rpx 38rpx 38rpx;
+  overflow-y: auto;
+  height: 27vh;
+}
+.live-indicator {
+  width: 24rpx;
+  height: 24rpx;
+  background: #10b981;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+.detection-list.single {
+  padding: 18rpx 24rpx 24rpx;
+}
+.detection-item {
+  margin-bottom: 0;
+}
+.image-container {
+  position: relative;
+  border-radius: 16rpx;
+  overflow: hidden;
+  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.1);
+}
+/* 仅显示一张图片高度：用宽度比例控制高度，移动端约 46vw，桌面端限定最大高度 */
+.placeholder-image {
+  width: 100%;
+  height: 46vw;
+  max-height: 360px;
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 8rpx;
-  padding: 16rpx;
-  transition: all 0.2s;
+  justify-content: center;
 }
-
-.nav-item:active {
-  transform: scale(0.95);
+.placeholder-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
-
-.nav-icon {
-  font-size: 48rpx;
-}
-
-.nav-label {
+.detection-info {
+  display: flex;
+  justify-content: space-between;
+  padding: 14rpx 8rpx 4rpx;
   font-size: 24rpx;
   color: #6b7280;
 }
-
-.nav-item.active .nav-label {
-  color: #2563eb;
+.detection-count {
   font-weight: 500;
 }
 
-/* 登录弹框样式 */
+/* 登录弹框样式（保留原风格） */
 .login-container {
   width: 600rpx;
   background: rgba(255, 255, 255, 0.95);
@@ -955,7 +1047,6 @@ onMounted(() => {
   overflow: hidden;
   box-shadow: 0 32rpx 96rpx rgba(0, 0, 0, 0.2);
 }
-
 .login-header {
   padding: 40rpx;
   display: flex;
@@ -963,27 +1054,22 @@ onMounted(() => {
   align-items: center;
   background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
 }
-
 .login-title {
   font-size: 40rpx;
   font-weight: bold;
   color: white;
 }
-
 .login-close {
   font-size: 48rpx;
   color: rgba(255, 255, 255, 0.8);
   padding: 0 20rpx;
 }
-
 .login-form {
   padding: 40rpx;
 }
-
 .form-item {
   margin-bottom: 40rpx;
 }
-
 .form-label {
   display: block;
   font-size: 32rpx;
@@ -991,7 +1077,6 @@ onMounted(() => {
   margin-bottom: 16rpx;
   font-weight: 500;
 }
-
 .form-input {
   width: 88%;
   height: 96rpx;
@@ -1002,17 +1087,14 @@ onMounted(() => {
   border: 2rpx solid #e5e7eb;
   transition: all 0.2s;
 }
-
 .form-input:focus {
   border-color: #2563eb;
   background: #fff;
 }
-
 .input-placeholder {
   color: #9ca3af;
   font-size: 32rpx;
 }
-
 .login-btn {
   width: 100%;
   height: 96rpx;
@@ -1026,28 +1108,69 @@ onMounted(() => {
   box-shadow: 0 8rpx 24rpx rgba(37, 99, 235, 0.3);
   transition: all 0.2s;
 }
-
 .login-btn:active {
   transform: scale(0.98);
   opacity: 0.9;
 }
-
 .login-footer {
   margin-top: 48rpx;
   text-align: center;
 }
-
 .footer-text {
   color: #4f46e5;
   font-size: 28rpx;
   text-decoration: underline;
 }
-
 .footer-text:active {
   opacity: 0.8;
 }
-
 .icon {
   font-size: inherit;
+}
+
+/* 桌面端优化（更宽的屏幕下增强观感） */
+@media (min-width: 1024px) {
+  
+  .status-card,
+  .speed-card,
+  .detection-card {
+    margin: 16px 24px 0;
+    border-radius: 20px;
+  }
+  .placeholder-image {
+    height: 30vh; /* 桌面端更修长的比例 */
+  }
+  .control-buttons {
+    margin: 18px 24px 0;
+  }
+  .detection-list {
+    height: 37vh; /* 增加检测列表高度 */
+  }
+}
+.detection-item {
+  margin-bottom: 32rpx;
+}
+
+.image-container {
+  position: relative;
+  border-radius: 16rpx;
+  overflow: hidden;
+  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.1);
+}
+
+.placeholder-text {
+  color: #6b7280;
+  font-size: 28rpx;
+}
+.detection-info {
+  display: flex;
+  justify-content: space-between;
+  padding: 16rpx;
+  font-size: 24rpx;
+  color: #6b7280;
+}
+
+.detection-count {
+  font-weight: 500;
 }
 </style>

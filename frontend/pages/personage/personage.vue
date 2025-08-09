@@ -314,6 +314,9 @@ const switchTab = (tab) => {
 .container {
   min-height: 100vh;
   background: linear-gradient(135deg, #f0f4ff 0%, #e0e7ff 50%, #f3e8ff 100%);
+  box-sizing: border-box;
+  margin: 0 auto;
+  max-width: 980px; 
 }
 
 .header {
